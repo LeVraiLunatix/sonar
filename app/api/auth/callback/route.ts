@@ -29,8 +29,7 @@ export async function GET(req: Request) {
     );
   }
 
-  // Phase 1 : tant que les données ne sont pas séparées par utilisateur,
-  // on n'autorise que le propriétaire (ALLOW_ALL_USERS=1 ouvrira à tous en phase 2).
+  // Les données sont cloisonnées par compte ; ALLOW_ALL_USERS ouvre l'inscription.
   const owner = (process.env.LASTFM_USER ?? "").toLowerCase();
   const allowAll = process.env.ALLOW_ALL_USERS === "1";
   if (!allowAll && username.toLowerCase() !== owner) {
@@ -40,7 +39,19 @@ export async function GET(req: Request) {
     );
   }
 
-  const res = NextResponse.redirect(new URL("/", origin), { status: 303 });
+  // Crée le compte au premier passage ; l'import initial se fait sur /onboarding.
+  let destination = "/";
+  if (process.env.DATABASE_URL) {
+    try {
+      const { upsertAccount } = await import("@/lib/accounts");
+      const acc = await upsertAccount(username);
+      if (acc.backfill_status !== "done") destination = "/onboarding";
+    } catch {
+      // base indisponible : on laisse entrer, les pages afficheront l'erreur
+    }
+  }
+
+  const res = NextResponse.redirect(new URL(destination, origin), { status: 303 });
   res.cookies.set(SESSION_COOKIE, await signSession(username, authSecret), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

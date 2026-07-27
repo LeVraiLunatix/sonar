@@ -73,6 +73,9 @@ body {
 html {
   background: var(--paper);
   scrollbar-gutter: stable;
+  /* Scroll VERTICAL uniquement : rien ne doit jamais élargir la page. */
+  overflow-x: hidden;
+  max-width: 100%;
 }
 body {
   background: var(--paper);
@@ -81,6 +84,10 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   min-height: 100svh;
+  overflow-x: hidden;
+  max-width: 100%;
+  /* évite que iOS élargisse le texte en paysage */
+  -webkit-text-size-adjust: 100%;
 }
 
 /* Grain d'impression */
@@ -297,6 +304,8 @@ a {
   position: relative;
   height: 1.35rem;
   isolation: var(--ink-isolate);
+  min-width: 0;
+  overflow: hidden; /* filet de sécurité : une barre ne peut jamais déborder */
 }
 .rank__seg {
   position: absolute;
@@ -428,14 +437,15 @@ a {
 
 /* ── horloge d'écoute (bandes polaires en SVG) ── */
 .clock {
-  width: min(320px, 80vw);
+  width: 100%;
+  max-width: 320px;
   isolation: var(--ink-isolate);
 }
 .clock svg {
   display: block;
   width: 100%;
   height: auto;
-  overflow: visible;
+  overflow: hidden; /* la viewBox contient déjà la marge des étiquettes */
 }
 .clock__bar {
   fill: var(--blue);
@@ -514,16 +524,20 @@ a {
 .nav {
   display: flex;
   align-items: baseline;
-  gap: clamp(0.8rem, 2vw, 1.5rem);
+  flex-wrap: wrap;
+  gap: 0.45rem clamp(0.8rem, 2vw, 1.5rem);
   font-family: var(--font-data);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  min-width: 0;
+  max-width: 100%;
 }
 .nav a {
   text-decoration: none;
   padding: 0.25em 0;
   color: var(--gray);
+  white-space: nowrap; /* un libellé ne se coupe pas en deux lignes */
 }
 .nav a:hover {
   color: var(--ink);
@@ -777,6 +791,92 @@ a {
   }
   .flow {
     margin-left: 66px;
+  }
+  /* tout doit tenir dans la largeur de l'écran */
+  .year,
+  .flow,
+  .ann,
+  .ranks,
+  .rank {
+    max-width: 100%;
+    min-width: 0;
+  }
+  /* colonne du nom plus étroite, la barre garde de la place */
+  .rank {
+    grid-template-columns: 1.3em minmax(0, 7.5em) minmax(0, 1fr) auto;
+    gap: 0.5rem;
+  }
+  .rank__name {
+    font-size: 0.85rem;
+  }
+  .rank__val {
+    font-size: 0.75rem;
+  }
+  .topbar,
+  .top__right {
+    max-width: 100%;
+    min-width: 0;
+  }
+  /* les longues lignes de texte ne poussent pas la page */
+  .prose,
+  .note,
+  .ann__label {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* ── compte connecté ── */
+.whoami {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.whoami__name {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.whoami__out {
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gray);
+  background: transparent;
+  border: none;
+  padding: 0.2em 0;
+  cursor: pointer;
+  border-bottom: 1px solid var(--rule);
+}
+.whoami__out:hover {
+  color: var(--pink);
+  mix-blend-mode: multiply;
+}
+
+/* ── import initial (onboarding) ── */
+.onb {
+  max-width: 46ch;
+}
+.onb__bar {
+  position: relative;
+  height: 1.6rem;
+  margin-top: 1.25rem;
+  border: 1.5px solid var(--ink);
+  isolation: var(--ink-isolate);
+  overflow: hidden;
+}
+/* la barre se remplit en rose sur le trait d'encre : le recouvrement vire au violet */
+.onb__fill {
+  display: block;
+  height: 100%;
+  background: var(--pink);
+  mix-blend-mode: multiply;
+  transition: width 0.5s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .onb__fill {
+    transition: none;
   }
 }
 

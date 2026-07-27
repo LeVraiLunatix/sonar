@@ -1,5 +1,6 @@
 import { getCompareData } from "@/lib/period";
 import { monthRange, parisToday } from "@/lib/dates";
+import { accountForPage } from "@/lib/guard";
 import { frMonth, nf } from "@/lib/format";
 import TopBar from "@/components/TopBar";
 import ComparePanel from "@/components/ComparePanel";
@@ -35,7 +36,9 @@ export default async function ComparePage({
   const aLabel = `${frMonth(a.m)} ${a.y}`;
   const bLabel = `${frMonth(b.m)} ${b.y}`;
 
+  const account = await accountForPage();
   const data = await getCompareData(
+    account,
     monthRange(a.y, a.m),
     monthRange(b.y, b.m),
     aLabel,

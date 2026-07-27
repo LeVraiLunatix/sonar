@@ -8,6 +8,7 @@ import {
   isoWeekOf,
   addDays,
 } from "@/lib/dates";
+import { accountForPage } from "@/lib/guard";
 import { nf, frDate } from "@/lib/format";
 import TopBar from "@/components/TopBar";
 import NowPlaying from "@/components/NowPlaying";
@@ -21,7 +22,8 @@ export default async function Home() {
   const [y, m] = today.split("-").map(Number);
   const { year: wy, week } = isoWeekOf(today);
 
-  const data = await getHomeData({
+  const account = await accountForPage();
+  const data = await getHomeData(account, {
     today: dayRange(today),
     week: weekRange(wy, week),
     month: monthRange(y, m),

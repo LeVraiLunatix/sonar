@@ -15,8 +15,14 @@ export default function ComparePanel({ data }: { data: CompareData }) {
         <li className="rank" key={r.key} style={{ gridTemplateColumns: "minmax(6em, 12em) 1fr auto" }}>
           <span className="rank__name" style={{ maxWidth: "none" }}>{r.name}</span>
           <div className="rank__bar" style={{ height: "1.5rem" }}>
-            <span className="rank__seg rank__seg--a" style={{ width: `${(r.a / max) * 100}%` }} />
-            <span className="rank__seg rank__seg--b" style={{ width: `${(r.b / max) * 100}%` }} />
+            <span
+              className="rank__seg rank__seg--a"
+              style={{ width: `${Math.min(100, (r.a / max) * 100)}%` }}
+            />
+            <span
+              className="rank__seg rank__seg--b"
+              style={{ width: `${Math.min(100, (r.b / max) * 100)}%` }}
+            />
           </div>
           <span className="rank__val mono">
             {nf(r.a)} <span className="cmp__vs">/</span> {nf(r.b)}

@@ -3,9 +3,12 @@ import { APP_TZ, FALLBACK_TRACK_MS } from "./constants";
 
 /**
  * Toutes les stats découlent d'UNE plage [start, end) exprimée en dates locales
- * (Europe/Paris). On convertit ces bornes en timestamptz via `date at time zone`,
- * ce qui est correct même autour des changements d'heure. Les journées sont donc
- * calées sur minuit à Paris, pas sur UTC (piège section 5).
+ * (Europe/Paris) ET d'UN compte. On convertit les bornes en timestamptz via
+ * `date at time zone`, correct même autour des changements d'heure : les
+ * journées sont calées sur minuit à Paris, pas sur UTC (piège section 5).
+ *
+ * ⚠️ Chaque requête DOIT filtrer sur `account` — c'est ce qui garantit qu'un
+ * utilisateur ne voit jamais les écoutes d'un autre.
  */
 export type Range = { start: string; end: string }; // 'YYYY-MM-DD', end exclusif
 
@@ -21,12 +24,13 @@ export type Summary = {
   estMs: number;
 };
 
-// Fragment WHERE réutilisable : played_at dans la plage, en Europe/Paris.
-const inRange = (r: Range) =>
-  sql`played_at >= (${r.start}::date at time zone ${APP_TZ})
-      and played_at < (${r.end}::date at time zone ${APP_TZ})`;
+/** Fragment WHERE réutilisable : le compte, et played_at dans la plage. */
+const scope = (account: string, r: Range) =>
+  sql`account = ${account}
+      and played_at >= (${r.start}::date at time zone ${APP_TZ})
+      and played_at <  (${r.end}::date at time zone ${APP_TZ})`;
 
-export async function summary(r: Range): Promise<Summary> {
+export async function summary(account: string, r: Range): Promise<Summary> {
   const [row] = await sql<
     { scrobbles: number; artists: number; tracks: number; ms: number }[]
   >`
@@ -38,7 +42,9 @@ export async function summary(r: Range): Promise<Summary> {
     from scrobbles s
     left join tracks t
       on t.artist_key = lower(s.artist) and t.track_key = lower(s.track)
-    where ${inRange(r)}
+    where s.account = ${account}
+      and s.played_at >= (${r.start}::date at time zone ${APP_TZ})
+      and s.played_at <  (${r.end}::date at time zone ${APP_TZ})
   `;
   return {
     scrobbles: row?.scrobbles ?? 0,
@@ -48,35 +54,47 @@ export async function summary(r: Range): Promise<Summary> {
   };
 }
 
-export async function topArtists(r: Range, limit = 10): Promise<ArtistCount[]> {
+export async function topArtists(
+  account: string,
+  r: Range,
+  limit = 10,
+): Promise<ArtistCount[]> {
   return sql<ArtistCount[]>`
     select
       lower(artist)                              as key,
       mode() within group (order by artist)      as name,  -- graphie la plus fréquente
       count(*)::int                              as count
     from scrobbles
-    where ${inRange(r)}
+    where ${scope(account, r)}
     group by lower(artist)
     order by count desc, name asc
     limit ${limit}
   `;
 }
 
-export async function topTracks(r: Range, limit = 10): Promise<TrackCount[]> {
+export async function topTracks(
+  account: string,
+  r: Range,
+  limit = 10,
+): Promise<TrackCount[]> {
   return sql<TrackCount[]>`
     select
       mode() within group (order by artist) as artist,
       mode() within group (order by track)  as track,
       count(*)::int                         as count
     from scrobbles
-    where ${inRange(r)}
+    where ${scope(account, r)}
     group by lower(artist), lower(track)
     order by count desc, track asc
     limit ${limit}
   `;
 }
 
-export async function topAlbums(r: Range, limit = 10): Promise<AlbumCount[]> {
+export async function topAlbums(
+  account: string,
+  r: Range,
+  limit = 10,
+): Promise<AlbumCount[]> {
   return sql<AlbumCount[]>`
     select
       mode() within group (order by artist)     as artist,
@@ -84,7 +102,7 @@ export async function topAlbums(r: Range, limit = 10): Promise<AlbumCount[]> {
       count(*)::int                             as count,
       mode() within group (order by image_url)  as image
     from scrobbles
-    where ${inRange(r)} and album is not null and album <> ''
+    where ${scope(account, r)} and album is not null and album <> ''
     group by lower(artist), lower(album)
     order by count desc, album asc
     limit ${limit}
@@ -92,7 +110,7 @@ export async function topAlbums(r: Range, limit = 10): Promise<AlbumCount[]> {
 }
 
 /** Un point par jour de la plage, zéros inclus (generate_series) → la ligne d'amplitude. */
-export async function perDay(r: Range): Promise<DayCount[]> {
+export async function perDay(account: string, r: Range): Promise<DayCount[]> {
   return sql<DayCount[]>`
     with days as (
       select generate_series(${r.start}::date, ${r.end}::date - 1, interval '1 day')::date as d
@@ -100,7 +118,7 @@ export async function perDay(r: Range): Promise<DayCount[]> {
     counts as (
       select (played_at at time zone ${APP_TZ})::date as d, count(*)::int as c
       from scrobbles
-      where ${inRange(r)}
+      where ${scope(account, r)}
       group by 1
     )
     select to_char(days.d, 'YYYY-MM-DD') as day, coalesce(counts.c, 0)::int as count
@@ -110,25 +128,37 @@ export async function perDay(r: Range): Promise<DayCount[]> {
 }
 
 /** Horloge d'écoute : répartition par heure (0..23), heure locale. */
-export async function perHour(r: Range): Promise<HourCount[]> {
+export async function perHour(account: string, r: Range): Promise<HourCount[]> {
   const rows = await sql<{ hour: number; count: number }[]>`
     select extract(hour from played_at at time zone ${APP_TZ})::int as hour,
            count(*)::int as count
     from scrobbles
-    where ${inRange(r)}
+    where ${scope(account, r)}
     group by 1
   `;
   const map = new Map(rows.map((x) => [x.hour, x.count]));
   return Array.from({ length: 24 }, (_, h) => ({ hour: h, count: map.get(h) ?? 0 }));
 }
 
-/** Découvertes : artistes dont le TOUT PREMIER scrobble (jamais) tombe dans la plage. */
-export async function discoveries(r: Range, limit = 12): Promise<ArtistCount[]> {
+/**
+ * Découvertes : artistes dont le TOUT PREMIER scrobble du compte tombe dans la
+ * plage. Le filtre `account` porte aussi sur le min() global, sinon la date de
+ * découverte serait celle d'un autre utilisateur.
+ */
+export async function discoveries(
+  account: string,
+  r: Range,
+  limit = 12,
+): Promise<ArtistCount[]> {
   return sql<ArtistCount[]>`
     select lower(artist) as key,
            mode() within group (order by artist) as name,
-           count(*) filter (where ${inRange(r)})::int as count
+           count(*) filter (
+             where played_at >= (${r.start}::date at time zone ${APP_TZ})
+               and played_at <  (${r.end}::date at time zone ${APP_TZ})
+           )::int as count
     from scrobbles
+    where account = ${account}
     group by lower(artist)
     having min(played_at) >= (${r.start}::date at time zone ${APP_TZ})
        and min(played_at) <  (${r.end}::date at time zone ${APP_TZ})
@@ -138,8 +168,8 @@ export async function discoveries(r: Range, limit = 12): Promise<ArtistCount[]> 
 }
 
 /** Le titre le plus écouté de la plage. */
-export async function topTrackOf(r: Range): Promise<TrackCount | null> {
-  const [t] = await topTracks(r, 1);
+export async function topTrackOf(account: string, r: Range): Promise<TrackCount | null> {
+  const [t] = await topTracks(account, r, 1);
   return t ?? null;
 }
 
@@ -151,13 +181,14 @@ export type ScrobbleRow = {
   image_url: string | null;
 };
 
-/** Derniers scrobbles (tous confondus) — pour le dashboard. */
-export async function recentScrobbles(limit = 12): Promise<ScrobbleRow[]> {
+/** Derniers scrobbles du compte — pour le dashboard. */
+export async function recentScrobbles(account: string, limit = 12): Promise<ScrobbleRow[]> {
   const rows = await sql<
     { played_at: Date; track: string; artist: string; album: string | null; image_url: string | null }[]
   >`
     select played_at, track, artist, album, image_url
     from scrobbles
+    where account = ${account}
     order by played_at desc
     limit ${limit}
   `;
@@ -165,23 +196,30 @@ export async function recentScrobbles(limit = 12): Promise<ScrobbleRow[]> {
 }
 
 /** Scrobbles d'une plage, ordre chronologique inverse — pour la timeline du jour. */
-export async function scrobblesInRange(r: Range, limit = 500): Promise<ScrobbleRow[]> {
+export async function scrobblesInRange(
+  account: string,
+  r: Range,
+  limit = 500,
+): Promise<ScrobbleRow[]> {
   const rows = await sql<
     { played_at: Date; track: string; artist: string; album: string | null; image_url: string | null }[]
   >`
     select played_at, track, artist, album, image_url
     from scrobbles
-    where ${inRange(r)}
+    where ${scope(account, r)}
     order by played_at desc
     limit ${limit}
   `;
   return rows.map((r) => ({ ...r, played_at: new Date(r.played_at).toISOString() }));
 }
 
-/** Total de scrobbles depuis toujours + date du tout premier. */
-export async function lifetime(): Promise<{ total: number; first: string | null }> {
+/** Total de scrobbles du compte depuis toujours + date du tout premier. */
+export async function lifetime(
+  account: string,
+): Promise<{ total: number; first: string | null }> {
   const [row] = await sql<{ total: number; first: Date | null }[]>`
-    select count(*)::int as total, min(played_at) as first from scrobbles
+    select count(*)::int as total, min(played_at) as first
+    from scrobbles where account = ${account}
   `;
   return {
     total: row?.total ?? 0,

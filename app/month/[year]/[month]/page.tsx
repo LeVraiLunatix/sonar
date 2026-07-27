@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getPeriodData } from "@/lib/period";
 import { monthRange } from "@/lib/dates";
+import { accountForPage } from "@/lib/guard";
 import { frMonth } from "@/lib/format";
 import PeriodView from "@/components/PeriodView";
 
@@ -16,7 +17,8 @@ export default async function MonthPage({
     notFound();
   }
 
-  const data = await getPeriodData(monthRange(year, month), "month");
+  const account = await accountForPage();
+  const data = await getPeriodData(account, monthRange(year, month), "month");
 
   const prev = month === 1 ? { y: year - 1, m: 12 } : { y: year, m: month - 1 };
   const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };

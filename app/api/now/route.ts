@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { fetchRecent } from "@/lib/lastfm";
+import { resolveAccount } from "@/lib/session";
 
-// Le morceau en cours n'est jamais en base (pas de date) : on le lit en direct.
+// Le morceau en cours n'est jamais en base (pas de date) : on le lit en direct,
+// pour le compte de la session.
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const apiKey = process.env.LASTFM_API_KEY;
-  const user = process.env.LASTFM_USER;
+  const user = await resolveAccount();
   if (!apiKey || !user) {
     return NextResponse.json({ nowPlaying: null, last: null });
   }

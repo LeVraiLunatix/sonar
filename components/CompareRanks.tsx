@@ -15,12 +15,17 @@ export default function CompareRanks({
   artists: ArtistCount[];
   prev: Record<string, number>;
 }) {
-  const max = Math.max(1, ...artists.map((a) => a.count));
+  // L'échelle tient compte des DEUX périodes : sinon un artiste très écouté
+  // avant (barre bleue) dépasserait 100 % et déborderait de l'écran.
+  const max = Math.max(
+    1,
+    ...artists.map((a) => Math.max(a.count, prev[a.key] ?? 0)),
+  );
   return (
     <ol className="ranks">
       {artists.map((a, i) => {
-        const now = (a.count / max) * 100;
-        const before = ((prev[a.key] ?? 0) / max) * 100;
+        const now = Math.min(100, (a.count / max) * 100);
+        const before = Math.min(100, ((prev[a.key] ?? 0) / max) * 100);
         return (
           <li className="rank" key={a.key}>
             <span className="rank__n mono">{String(i + 1).padStart(2, "0")}</span>

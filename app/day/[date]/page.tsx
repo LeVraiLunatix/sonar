@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDayData } from "@/lib/period";
 import { prevDay, nextDay, isoWeekOf } from "@/lib/dates";
+import { accountForPage } from "@/lib/guard";
 import { nf, humanMs, frDate, frTime } from "@/lib/format";
 import TopBar from "@/components/TopBar";
 
@@ -15,7 +16,8 @@ export default async function DayPage({
   const { date } = await params;
   if (!DATE_RE.test(date)) notFound();
 
-  const data = await getDayData(date);
+  const account = await accountForPage();
+  const data = await getDayData(account, date);
   const { summary, perHour, topArtists, timeline } = data;
   const maxHour = Math.max(1, ...perHour.map((h) => h.count));
   const [y, m] = date.split("-").map(Number);

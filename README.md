@@ -35,8 +35,18 @@ stats calculées en SQL (`lib/year.ts`).
 
 ```bash
 npm install
-npm run db:schema     # crée les tables (db/schema.sql)
+npm run db:schema     # nouvelle base : crée les tables (db/schema.sql)
 ```
+
+Base déjà en place → appliquer les migrations à la place :
+
+```bash
+npm run db:migrate    # db/migrations/, transactionnel et rejouable
+```
+
+⚠️ **Ordre en production** : appliquer la migration **avant** de déployer le
+code correspondant. Les lectures de l'ancienne version continuent de
+fonctionner pendant la fenêtre ; seul le sync attend le déploiement.
 
 ### 3. Rapatrier l'historique
 
@@ -78,6 +88,24 @@ db/schema.sql             schéma (scrobbles + tracks + artist_tags + …)
 scripts/                  apply-schema, backfill, sync
 reference/hero.html       le hero validé (référence design)
 ```
+
+## Multi-utilisateur
+
+Chaque scrobble porte le compte Last.fm auquel il appartient (`scrobbles.account`),
+et **toutes** les requêtes de `lib/stats.ts` filtrent dessus : un utilisateur ne
+voit jamais les écoutes d'un autre.
+
+- **Connexion** : OAuth Last.fm (`/login` → `/api/auth/callback`).
+- **Premier login** : le compte est créé, puis `/onboarding` importe tout
+  l'historique **par tranches** (`/api/backfill/run` rappelée en boucle par le
+  client) — nécessaire car une fonction serverless ne peut pas tourner longtemps.
+  L'import reprend là où il s'est arrêté s'il est interrompu.
+- **Sync** : le cron parcourt tous les comptes dont l'import est terminé.
+- **Ouverture** : tant que `ALLOW_ALL_USERS` ≠ `1`, seul `LASTFM_USER` peut se
+  connecter. Mettre `ALLOW_ALL_USERS=1` pour ouvrir l'inscription à tous.
+
+⚠️ Ouvrir à tous stocke l'historique de chaque visiteur dans la même base et
+partage un seul quota d'API Last.fm — à surveiller au-delà de quelques comptes.
 
 ## Reste à faire (ordre du brief)
 

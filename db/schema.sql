@@ -1,11 +1,31 @@
 -- ─────────────────────────────────────────────────────────────
--- Sonar — schéma Postgres
+-- Sonar — schéma Postgres (multi-utilisateur)
 -- Un seul schéma accepte Last.fm (flux vivant) ET les exports RGPD
 -- (Spotify / Apple Music) via la colonne `source`.
+-- Chaque ligne appartient à un compte Last.fm via la colonne `account`.
+--
+-- Base existante → utilise plutôt `npm run db:migrate` (db/migrations/).
 -- ─────────────────────────────────────────────────────────────
+
+-- ── Comptes connus + état d'import de chacun ──
+create table if not exists accounts (
+  username        text primary key,
+  username_key    text not null unique,      -- lower(username)
+  created_at      timestamptz not null default now(),
+  last_seen_at    timestamptz not null default now(),
+  backfill_status text not null default 'pending',  -- pending|running|done|error
+  backfill_page   integer not null default 0,
+  backfill_pages  integer,
+  backfill_to_ts  bigint,
+  backfill_error  text,
+  last_sync_at    timestamptz
+);
+
+create index if not exists accounts_status_idx on accounts (backfill_status);
 
 create table if not exists scrobbles (
   id           bigserial primary key,
+  account      text not null,
   played_at    timestamptz not null,
   track        text not null,
   artist       text not null,
@@ -20,18 +40,20 @@ create table if not exists scrobbles (
   source       text not null default 'lastfm',
   -- rempli seulement par les exports RGPD (télémétrie réelle), sinon null
   ms_played    integer,
-  skipped      boolean,
-
-  -- idempotence du sync : insert ... on conflict do nothing
-  unique (played_at, track, artist)
+  skipped      boolean
 );
 
-create index if not exists scrobbles_played_at_idx on scrobbles (played_at desc);
-create index if not exists scrobbles_artist_played_idx on scrobbles (artist, played_at);
-create index if not exists scrobbles_artist_lower_idx on scrobbles (lower(artist));
+-- idempotence du sync, par compte : insert ... on conflict do nothing
+create unique index if not exists scrobbles_account_unique_idx
+  on scrobbles (account, played_at, track, artist);
+
+create index if not exists scrobbles_account_played_idx
+  on scrobbles (account, played_at desc);
+create index if not exists scrobbles_account_artist_idx
+  on scrobbles (account, lower(artist));
 create index if not exists scrobbles_source_idx on scrobbles (source);
 
--- ── Dimension durée de titre (résolue une seule fois par titre unique) ──
+-- ── Dimension durée de titre (partagée entre comptes : c'est une donnée du titre) ──
 create table if not exists tracks (
   artist_key   text not null,          -- lower(artist)
   track_key    text not null,          -- lower(track)
@@ -56,13 +78,4 @@ create table if not exists artist_tags (
   weight       integer,                -- rang/poids Last.fm
   updated_at   timestamptz not null default now(),
   primary key (artist_key, tag)
-);
-
--- ── État du backfill (reprise sur erreur) ──
-create table if not exists ingest_state (
-  id           text primary key,       -- 'backfill' | 'sync'
-  last_page    integer,
-  to_ts        bigint,                 -- borne haute figée du backfill (unix)
-  total_pages  integer,
-  updated_at   timestamptz not null default now()
 );

@@ -11,6 +11,7 @@
     "lint": "next lint",
     "icons": "node scripts/gen-icons.mjs",
     "db:schema": "node --env-file=.env.local scripts/apply-schema.mjs",
+    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
     "backfill": "node --env-file=.env.local --import tsx scripts/backfill.ts",
     "sync": "node --env-file=.env.local --import tsx scripts/sync.ts"
   },

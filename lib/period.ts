@@ -12,7 +12,9 @@ import { buildRange, buildDayTimeline } from "./fixtures";
 import { longestStreak } from "./streak";
 import { periodLabel, prevRangeOf, type PeriodKind } from "./dates";
 
-const hasDb = () => !!process.env.DATABASE_URL;
+/** Données réelles seulement si une base est configurée ET un compte identifié. */
+const useDb = (account: string | null): account is string =>
+  !!process.env.DATABASE_URL && !!account;
 
 export type PeriodData = {
   range: Range;
@@ -32,11 +34,15 @@ export type PeriodData = {
   source: "fixtures" | "db";
 };
 
-export async function getPeriodData(range: Range, kind: PeriodKind): Promise<PeriodData> {
+export async function getPeriodData(
+  account: string | null,
+  range: Range,
+  kind: PeriodKind,
+): Promise<PeriodData> {
   const label = periodLabel(range, kind);
   const prev = prevRangeOf(range, kind);
 
-  if (!hasDb()) {
+  if (!useDb(account)) {
     const f = buildRange(range.start, range.end);
     const p = buildRange(prev.start, prev.end);
     return {
@@ -53,14 +59,14 @@ export async function getPeriodData(range: Range, kind: PeriodKind): Promise<Per
   const s = await import("./stats");
   const [summary, perDay, perHour, topArtists, topAlbums, topTracks, discoveries, prevTop] =
     await Promise.all([
-      s.summary(range),
-      s.perDay(range),
-      s.perHour(range),
-      s.topArtists(range, 10),
-      s.topAlbums(range, 8),
-      s.topTracks(range, 10),
-      s.discoveries(range, 12),
-      s.topArtists(prev, 500),
+      s.summary(account, range),
+      s.perDay(account, range),
+      s.perHour(account, range),
+      s.topArtists(account, range, 10),
+      s.topAlbums(account, range, 8),
+      s.topTracks(account, range, 10),
+      s.discoveries(account, range, 12),
+      s.topArtists(account, prev, 500),
     ]);
 
   return {
@@ -77,21 +83,21 @@ export async function getPeriodData(range: Range, kind: PeriodKind): Promise<Per
     topTrack: topTracks[0] ?? null,
     streak: longestStreak(perDay),
     prevArtist: Object.fromEntries(prevTop.map((a) => [a.key, a.count])),
-    source: hasDb() ? "db" : "fixtures",
+    source: "db",
   };
 }
 
 // ── Journée : période + timeline détaillée ──
 export type DayData = PeriodData & { timeline: ScrobbleRow[] };
 
-export async function getDayData(date: string): Promise<DayData> {
-  const base = await getPeriodData({ start: date, end: nextDayStr(date) }, "day");
+export async function getDayData(account: string | null, date: string): Promise<DayData> {
+  const base = await getPeriodData(account, { start: date, end: nextDayStr(date) }, "day");
   let timeline: ScrobbleRow[];
-  if (!hasDb()) {
+  if (!useDb(account)) {
     timeline = buildDayTimeline(date, base.summary.scrobbles) as ScrobbleRow[];
   } else {
     const s = await import("./stats");
-    timeline = await s.scrobblesInRange(base.range, 500);
+    timeline = await s.scrobblesInRange(account, base.range, 500);
   }
   return { ...base, timeline };
 }
@@ -112,6 +118,7 @@ export type CompareData = {
 };
 
 export async function getCompareData(
+  account: string | null,
   aRange: Range,
   bRange: Range,
   aLabel: string,
@@ -122,7 +129,7 @@ export async function getCompareData(
   let aSum: Summary;
   let bSum: Summary;
 
-  if (!hasDb()) {
+  if (!useDb(account)) {
     const fa = buildRange(aRange.start, aRange.end);
     const fb = buildRange(bRange.start, bRange.end);
     aList = fa.topArtists;
@@ -132,10 +139,10 @@ export async function getCompareData(
   } else {
     const s = await import("./stats");
     [aSum, bSum, aList, bList] = await Promise.all([
-      s.summary(aRange),
-      s.summary(bRange),
-      s.topArtists(aRange, 500),
-      s.topArtists(bRange, 500),
+      s.summary(account, aRange),
+      s.summary(account, bRange),
+      s.topArtists(account, aRange, 500),
+      s.topArtists(account, bRange, 500),
     ]);
   }
 
@@ -173,15 +180,16 @@ export type HomeData = {
 };
 
 export async function getHomeData(
+  account: string | null,
   ranges: { today: Range; week: Range; month: Range; last90: Range },
 ): Promise<HomeData> {
   const [today, week, month] = await Promise.all([
-    getPeriodData(ranges.today, "day"),
-    getPeriodData(ranges.week, "week"),
-    getPeriodData(ranges.month, "month"),
+    getPeriodData(account, ranges.today, "day"),
+    getPeriodData(account, ranges.week, "week"),
+    getPeriodData(account, ranges.month, "month"),
   ]);
 
-  if (!hasDb()) {
+  if (!useDb(account)) {
     const b = buildRange(ranges.last90.start, ranges.last90.end);
     return {
       today,
@@ -196,9 +204,9 @@ export async function getHomeData(
 
   const s = await import("./stats");
   const [last90, recent, life] = await Promise.all([
-    s.perDay(ranges.last90),
-    s.recentScrobbles(12),
-    s.lifetime(),
+    s.perDay(account, ranges.last90),
+    s.recentScrobbles(account, 12),
+    s.lifetime(account),
   ]);
   return { today, week, month, last90, recent, lifetime: life, source: "db" };
 }

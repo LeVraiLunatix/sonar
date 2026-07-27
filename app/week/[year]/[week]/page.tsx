@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getPeriodData } from "@/lib/period";
 import { weekRange, isoWeekOf, addDays } from "@/lib/dates";
+import { accountForPage } from "@/lib/guard";
 import PeriodView from "@/components/PeriodView";
 
 export default async function WeekPage({
@@ -16,7 +17,8 @@ export default async function WeekPage({
   }
 
   const range = weekRange(year, week);
-  const data = await getPeriodData(range, "week");
+  const account = await accountForPage();
+  const data = await getPeriodData(account, range, "week");
 
   // Semaines voisines via les lundis adjacents (robuste aux années à 52/53 semaines).
   const prevW = isoWeekOf(addDays(range.start, -7));

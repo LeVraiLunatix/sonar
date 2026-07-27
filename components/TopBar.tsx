@@ -2,9 +2,11 @@ import Link from "next/link";
 import ThemeToggle from "./ThemeToggle";
 import Logo from "./Logo";
 import { parisToday, isoWeekOf } from "@/lib/dates";
+import { currentUser } from "@/lib/session";
 
-/** Barre haute partagée : marque discrète + navigation + bascule de thème. */
-export default function TopBar({ current }: { current?: string }) {
+/** Barre haute partagée : marque + navigation + compte connecté + thème. */
+export default async function TopBar({ current }: { current?: string }) {
+  const user = await currentUser();
   const today = parisToday();
   const [y, m] = today.split("-").map(Number);
   const { year: wy, week } = isoWeekOf(today);
@@ -35,6 +37,14 @@ export default function TopBar({ current }: { current?: string }) {
             </Link>
           ))}
         </nav>
+        {user && (
+          <form className="whoami" method="post" action="/api/auth/logout">
+            <span className="whoami__name mono">{user}</span>
+            <button className="whoami__out mono" type="submit">
+              sortir
+            </button>
+          </form>
+        )}
         <ThemeToggle />
       </div>
     </div>

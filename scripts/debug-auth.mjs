@@ -5,9 +5,19 @@ import crypto from "node:crypto";
 const key = process.env.LASTFM_API_KEY;
 const secret = process.env.LASTFM_API_SECRET;
 
-console.log("LASTFM_API_KEY    présent:", !!key, "· longueur:", key?.length ?? 0);
-console.log("LASTFM_API_SECRET présent:", !!secret, "· longueur:", secret?.length ?? 0);
+const mask = (v) => (v ? `${v.slice(0, 4)}…${v.slice(-4)}` : "(vide)");
+console.log("LASTFM_API_KEY    :", mask(key), "· longueur:", key?.length ?? 0);
+console.log("LASTFM_API_SECRET :", mask(secret), "· longueur:", secret?.length ?? 0);
 console.log("LASTFM_USER       :", process.env.LASTFM_USER ?? "(absent)");
+if (key && secret && key === secret) {
+  console.log(
+    "\n❌ PROBLÈME TROUVÉ : LASTFM_API_SECRET est IDENTIQUE à LASTFM_API_KEY.",
+    "\n   Tu as collé l'API key à la place du Shared secret.",
+    "\n   Va sur https://www.last.fm/api/accounts → ton appli → copie le champ",
+    "\n   « Shared secret » (une valeur DIFFÉRENTE de l'API key).",
+  );
+  process.exit(0);
+}
 if (!key || !secret) {
   console.log("\n→ Il manque une valeur en LOCAL. (Sur Vercel elle peut être là.)");
   process.exit(0);

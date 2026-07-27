@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getPeriodData } from "@/lib/period";
 import { yearRange } from "@/lib/dates";
+import { accountForPage } from "@/lib/guard";
 import PeriodView from "@/components/PeriodView";
 
 export default async function YearPage({
@@ -12,7 +13,8 @@ export default async function YearPage({
   const year = Number(raw);
   if (!Number.isInteger(year) || year < 2002 || year > 2100) notFound();
 
-  const data = await getPeriodData(yearRange(year), "year");
+  const account = await accountForPage();
+  const data = await getPeriodData(account, yearRange(year), "year");
 
   return (
     <PeriodView

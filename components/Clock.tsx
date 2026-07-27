@@ -14,7 +14,13 @@ export default function Clock({ hours }: { hours: HourCount[] }) {
 
   return (
     <div className="clock">
-      <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Répartition des écoutes par heure">
+      {/* viewBox élargie : les étiquettes d'heures tiennent dans le cadre
+          au lieu de déborder du conteneur. */}
+      <svg
+        viewBox={`-20 -20 ${size + 40} ${size + 40}`}
+        role="img"
+        aria-label="Répartition des écoutes par heure"
+      >
         {hours.map((h) => {
           const angle = (h.hour / 24) * Math.PI * 2 - Math.PI / 2; // 0h en haut
           const r = inner + (h.count / max) * (outer - inner);
