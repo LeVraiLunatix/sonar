@@ -138,6 +138,9 @@ a {
   position: relative;
   min-height: 100svh;
   padding: clamp(1.25rem, 3.5vw, 2.75rem);
+  /* pleine largeur ; borne haute très large pour rester lisible en 4K */
+  max-width: 2200px;
+  margin: 0 auto;
 }
 /* la ligne d'amplitude = colonne vertébrale, court sur toute la hauteur */
 .spine {
@@ -183,22 +186,57 @@ a {
   }
 }
 
-/* la colonne de contenu laisse la place à la spine */
+/* Le contenu occupe toute la largeur ; la spine garde sa place à gauche.
+   Au-delà d'une certaine largeur, les annotations se répartissent en
+   colonnes au lieu de laisser la moitié de l'écran vide. */
 .flow {
   margin-left: clamp(84px, 15vw, 200px);
-  display: flex;
-  flex-direction: column;
-  gap: clamp(3rem, 8vh, 6rem);
-  max-width: 62ch;
+  margin-right: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(2.5rem, 6vh, 4.5rem) clamp(2rem, 4vw, 4rem);
+  align-items: start;
+  max-width: none;
+  width: auto;
 }
 
-/* annotations accrochées à la bande — pas des cartes */
+/* annotations accrochées à la bande — filets, jamais de cartes */
 .ann {
   position: relative;
+  min-width: 0;
 }
 .ann + .ann {
   padding-top: clamp(2rem, 5vh, 3.5rem);
   border-top: 1px solid var(--rule);
+}
+
+/* ── répartition en colonnes sur grand écran ── */
+@media (min-width: 1100px) {
+  .flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* chaque bloc porte son filet : plus de « + .ann » en grille */
+  .ann + .ann {
+    padding-top: 0;
+    border-top: none;
+  }
+  .ann {
+    padding-top: clamp(1.5rem, 3vh, 2.5rem);
+    border-top: 1px solid var(--rule);
+  }
+  /* le bloc d'en-tête (grand chiffre) tient toute la largeur */
+  .flow > .ann:first-of-type,
+  .flow > .period-nav {
+    grid-column: 1 / -1;
+  }
+  .flow > .topbar {
+    grid-column: 1 / -1;
+  }
+}
+@media (min-width: 1700px) {
+  .flow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 .ann__label {
   font-family: var(--font-data);
@@ -556,7 +594,7 @@ a {
   margin-left: 0;
 }
 .flow--wide {
-  max-width: 72ch;
+  max-width: none;
 }
 
 /* ── now playing ── */
@@ -888,10 +926,41 @@ a {
 
 /* ═══════════ page d'accueil publique ═══════════ */
 .landing {
-  max-width: 68ch;
+  max-width: 1500px;
   margin: 0 auto;
   padding: clamp(1.25rem, 3.5vw, 2.75rem);
   padding-bottom: 6rem;
+}
+/* sur grand écran, les blocs s'étalent : intitulé à gauche, contenu à droite */
+@media (min-width: 1100px) {
+  .landing__block {
+    display: grid;
+    grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+    gap: 0 clamp(2rem, 5vw, 5rem);
+    align-items: start;
+  }
+  .landing__block > .ann__label {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .landing__block > .landing__h2 {
+    grid-column: 1;
+    grid-row: 2;
+    margin-top: 0;
+  }
+  /* tout le reste (texte, listes, démo) occupe la colonne de droite */
+  .landing__block > :not(.ann__label):not(.landing__h2) {
+    grid-column: 2;
+  }
+  .landing__block > .prose:first-of-type {
+    grid-row: 1 / span 3;
+  }
+  .landing__end {
+    grid-template-columns: 1fr;
+  }
+  .landing__end > * {
+    grid-column: 1 !important;
+  }
 }
 .landing__top {
   display: flex;
@@ -1108,8 +1177,9 @@ a {
   list-style: none;
   margin: 1.5rem 0 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  column-gap: clamp(2rem, 4vw, 3.5rem);
 }
 .feat {
   display: grid;
