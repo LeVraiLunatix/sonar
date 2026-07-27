@@ -1,0 +1,31 @@
+{
+  "name": "sonar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Wrapped permanent — stats d'écoute Last.fm par jour, semaine, mois, année",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "icons": "node scripts/gen-icons.mjs",
+    "db:schema": "node --env-file=.env.local scripts/apply-schema.mjs",
+    "backfill": "node --env-file=.env.local --import tsx scripts/backfill.ts",
+    "sync": "node --env-file=.env.local --import tsx scripts/sync.ts"
+  },
+  "dependencies": {
+    "next": "^15.5.22",
+    "postgres": "^3.4.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^2.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

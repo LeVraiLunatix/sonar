@@ -1,0 +1,933 @@
+/* ─────────────────────────────────────────────────────────────
+   Sonar — design system risographie
+   Deux encres ; le violet n'est JAMAIS posé à la main : il naît
+   d'un mix-blend-mode: multiply entre les calques.
+   ───────────────────────────────────────────────────────────── */
+
+/* Departure Mono — pas sur Google Fonts, servi via CDN jsDelivr */
+@font-face {
+  font-family: "Departure Mono";
+  src: url("https://cdn.jsdelivr.net/npm/@proj-airi/font-departure-mono@0.11.3/dist/files/DepartureMono-Regular.woff2")
+    format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --paper: #edead8;
+  --pink: #ff4fa3;
+  --blue: #2e4fd6;
+  --ink: #1c1a17;
+  --gray: #8a8578;
+
+  /* --font-display / --font-text sont injectés par next/font (layout.tsx) */
+  --font-data: "Departure Mono", ui-monospace, "Cascadia Mono", monospace;
+
+  /* rôles dérivés — pilotent la bascule clair / sombre */
+  --grain-blend: multiply;
+  --grain-opacity: 0.16;
+  --ink-isolate: auto; /* clair : les encres multiplient sur le papier */
+  --data-accent: var(--blue);
+  --amp-opacity: 1;
+  --rule: color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
+/* ── MODE SOMBRE : deux encres sur kraft foncé (jamais du noir pur) ──
+   L'encre noire devient crème. On isole la couche d'encre pour que
+   rose × bleu se multiplient ENTRE EUX (= violet) au lieu de se noyer
+   dans le fond → pas de « fond noir + accent néon », violet non codé. */
+:root[data-theme="dark"] {
+  --paper: #201c16;
+  --ink: #edead8;
+  --gray: #9c9686;
+  --grain-blend: screen;
+  --grain-opacity: 0.11;
+  --ink-isolate: isolate;
+  --data-accent: var(--ink);
+  --amp-opacity: 0.92;
+  --rule: color-mix(in srgb, var(--ink) 22%, transparent);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #201c16;
+    --ink: #edead8;
+    --gray: #9c9686;
+    --grain-blend: screen;
+    --grain-opacity: 0.11;
+    --ink-isolate: isolate;
+    --data-accent: var(--ink);
+    --amp-opacity: 0.92;
+    --rule: color-mix(in srgb, var(--ink) 22%, transparent);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+html {
+  background: var(--paper);
+  scrollbar-gutter: stable;
+}
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-text), Georgia, serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100svh;
+}
+
+/* Grain d'impression */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  mix-blend-mode: var(--grain-blend);
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+a {
+  color: inherit;
+}
+:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 4px;
+}
+
+/* ── rôles typographiques ── */
+.mono {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+.display {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.eyebrow {
+  font-family: var(--font-data);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+.prose {
+  font-family: var(--font-text), Georgia, serif;
+  line-height: 1.5;
+  max-width: 46ch;
+}
+
+/* ═══════════ layout page année : bande verticale continue ═══════════ */
+.year {
+  position: relative;
+  min-height: 100svh;
+  padding: clamp(1.25rem, 3.5vw, 2.75rem);
+}
+/* la ligne d'amplitude = colonne vertébrale, court sur toute la hauteur */
+.spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: clamp(1.25rem, 3.5vw, 2.75rem);
+  width: clamp(64px, 11vw, 150px);
+  isolation: var(--ink-isolate);
+  pointer-events: none;
+}
+.spine svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.amp-line {
+  fill: none;
+  mix-blend-mode: multiply;
+  stroke-opacity: var(--amp-opacity);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.amp-line--pink {
+  stroke: var(--pink);
+}
+.amp-line--blue {
+  stroke: var(--blue);
+}
+.amp-base {
+  stroke: var(--ink);
+  stroke-width: 1;
+  opacity: 0.22;
+}
+.amp-line.is-drawing {
+  transition: stroke-dashoffset 2.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .amp-line {
+    transition: none !important;
+  }
+}
+
+/* la colonne de contenu laisse la place à la spine */
+.flow {
+  margin-left: clamp(84px, 15vw, 200px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(3rem, 8vh, 6rem);
+  max-width: 62ch;
+}
+
+/* annotations accrochées à la bande — pas des cartes */
+.ann {
+  position: relative;
+}
+.ann + .ann {
+  padding-top: clamp(2rem, 5vh, 3.5rem);
+  border-top: 1px solid var(--rule);
+}
+.ann__label {
+  font-family: var(--font-data);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gray);
+  margin: 0 0 0.75rem;
+}
+
+/* ── le grand chiffre (les chiffres sont la typo d'affichage) ── */
+.big {
+  position: relative;
+  isolation: var(--ink-isolate);
+  display: inline-block;
+  line-height: 0.84;
+}
+.big__ink,
+.big__ghost {
+  display: block;
+  font-family: var(--font-data);
+  font-size: clamp(3.5rem, 15vw, 9.5rem);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.big__ink {
+  position: relative;
+  color: var(--ink);
+}
+.big__ghost {
+  position: absolute;
+  inset: 0;
+  color: var(--pink);
+  transform: translate(0.05em, 0.06em);
+  mix-blend-mode: multiply;
+  z-index: -1;
+}
+.big__unit {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: clamp(1rem, 2vw, 1.5rem);
+}
+
+/* ── résumé chiffré en ligne ── */
+.tallies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(1.4rem, 4vw, 3rem);
+  margin-top: 1.5rem;
+}
+.tallies div {
+  display: grid;
+  gap: 0.25em;
+}
+.tallies .v {
+  font-family: var(--font-data);
+  font-size: clamp(1.2rem, 2.6vw, 1.8rem);
+  color: var(--data-accent);
+  font-variant-numeric: tabular-nums;
+}
+.tallies .k {
+  font-family: var(--font-data);
+  font-size: 0.66rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+
+/* ── barres de classement : surimpression = comparaison ──
+   barre rose = cette année, barre bleue = l'an dernier, translucides et
+   en multiply → le recouvrement vire au violet, littéralement. */
+.ranks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.rank {
+  display: grid;
+  grid-template-columns: 1.4em minmax(6em, 11em) 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+.rank__n {
+  font-family: var(--font-data);
+  font-size: 0.8rem;
+  color: var(--gray);
+  text-align: right;
+}
+.rank__name {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rank__bar {
+  position: relative;
+  height: 1.35rem;
+  isolation: var(--ink-isolate);
+}
+.rank__seg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  mix-blend-mode: multiply;
+}
+.rank__seg--now {
+  background: var(--pink);
+}
+.rank__seg--prev {
+  background: var(--blue);
+  height: 0.45rem;
+  top: auto;
+  bottom: -0.1rem;
+  opacity: 0.9;
+}
+/* comparateur : deux barres pleines superposées */
+.rank__seg--a {
+  background: var(--pink);
+  height: 100%;
+}
+.rank__seg--b {
+  background: var(--blue);
+  height: 100%;
+}
+.cmp__vs {
+  color: var(--gray);
+}
+
+/* en-tête du comparateur : deux périodes face à face */
+.cmp-head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: clamp(1rem, 4vw, 2.5rem);
+}
+.cmp-side {
+  display: grid;
+  gap: 0.3rem;
+}
+.cmp-side--b {
+  text-align: right;
+}
+.cmp-side__n {
+  font-family: var(--font-data);
+  font-size: clamp(2rem, 8vw, 4.5rem);
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+.cmp-side--a .cmp-side__n {
+  color: var(--pink);
+  mix-blend-mode: multiply;
+}
+.cmp-side--b .cmp-side__n {
+  color: var(--blue);
+  mix-blend-mode: multiply;
+}
+.cmp-side__k {
+  font-family: var(--font-data);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+.cmp-head__vs {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  color: var(--gray);
+  font-size: 1.1rem;
+}
+.cmp-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.cmp-form label {
+  display: grid;
+  gap: 0.3rem;
+  font-family: var(--font-data);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+.cmp-form input {
+  font-family: var(--font-data);
+  font-size: 0.9rem;
+  padding: 0.45em 0.6em;
+  background: transparent;
+  color: var(--ink);
+  border: 1.5px solid var(--rule);
+}
+.cmp-form button {
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.55em 0.9em;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  cursor: pointer;
+}
+.rank__val {
+  font-family: var(--font-data);
+  font-size: 0.85rem;
+  color: var(--gray);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── heatmap année, façon contributions ── */
+.heat {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+.heat i {
+  width: 11px;
+  height: 11px;
+  background: var(--pink);
+  display: block;
+}
+
+/* ── horloge d'écoute (bandes polaires en SVG) ── */
+.clock {
+  width: min(320px, 80vw);
+  isolation: var(--ink-isolate);
+}
+.clock svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.clock__bar {
+  fill: var(--blue);
+  mix-blend-mode: multiply;
+}
+.clock__tick {
+  fill: var(--gray);
+  font-family: var(--font-data);
+  font-size: 9px;
+}
+
+/* ── barre de nav / thème (réutilise le hero) ── */
+.topbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  flex-wrap: wrap;
+  margin-bottom: clamp(2rem, 6vh, 4rem);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+}
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.logo__mark {
+  width: 1.9rem;
+  height: 1.9rem;
+  display: block;
+  flex: none;
+}
+.logo__word {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.tgl {
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: transparent;
+  border: 1.5px solid var(--ink);
+  padding: 0.45em 0.7em;
+  cursor: pointer;
+  line-height: 1;
+}
+.tgl:hover {
+  color: var(--paper);
+  background: var(--ink);
+}
+
+.note {
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  color: var(--gray);
+  letter-spacing: 0.04em;
+}
+
+/* ── navigation dans la barre haute ── */
+.top__right {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(1rem, 2.4vw, 1.8rem);
+  flex-wrap: wrap;
+}
+.nav {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(0.8rem, 2vw, 1.5rem);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.nav a {
+  text-decoration: none;
+  padding: 0.25em 0;
+  color: var(--gray);
+}
+.nav a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.35em;
+}
+.nav a.now {
+  color: var(--ink);
+}
+
+/* ── page sans spine : flow pleine largeur ── */
+.year--nospine .flow {
+  margin-left: 0;
+}
+.flow--wide {
+  max-width: 72ch;
+}
+
+/* ── now playing ── */
+.np {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  min-height: 1.5rem;
+}
+.np__dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  background: var(--pink);
+  border-radius: 50%;
+  align-self: center;
+}
+.np__label {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+.np__track {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.np__title {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.np__artist {
+  font-family: var(--font-text), serif;
+  font-style: italic;
+  color: var(--gray);
+}
+.np__idle {
+  font-size: 0.75rem;
+  color: var(--gray);
+}
+
+/* ── amplitude horizontale (dashboard) ── */
+.strip {
+  width: 100%;
+  height: clamp(90px, 16vh, 150px);
+  isolation: var(--ink-isolate);
+}
+.strip svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* ── tuiles aujourd'hui / semaine / mois ── */
+.tiles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(1rem, 3vw, 2rem);
+}
+.tile {
+  display: grid;
+  gap: 0.25em;
+  text-decoration: none;
+  padding: 0.6rem 0;
+  border-bottom: 2px solid transparent;
+}
+.tile:hover {
+  border-bottom-color: var(--blue);
+}
+.tile__v {
+  font-family: var(--font-data);
+  font-size: clamp(1.8rem, 5vw, 2.8rem);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.tile__k {
+  font-family: var(--font-data);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+
+/* ── liste des scrobbles récents ── */
+.recent,
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.recent__row,
+.timeline__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.recent__track,
+.timeline__track {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.recent__title,
+.timeline__title {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: 0.98rem;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent__artist,
+.timeline__artist {
+  font-family: var(--font-text), serif;
+  font-style: italic;
+  color: var(--gray);
+  font-size: 0.92rem;
+  flex: none;
+  white-space: nowrap;
+}
+.recent__when {
+  font-size: 0.72rem;
+  color: var(--gray);
+  white-space: nowrap;
+}
+.timeline__time {
+  font-size: 0.8rem;
+  color: var(--blue);
+  min-width: 3.2em;
+}
+
+/* ── barres heure par heure (page jour) ── */
+.hours {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  align-items: flex-end;
+  gap: 3px;
+  height: clamp(90px, 16vh, 150px);
+}
+.hours__col {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.hours__bar {
+  width: 100%;
+  min-height: 2px;
+  background: var(--blue);
+  mix-blend-mode: multiply;
+}
+.hours__tick {
+  position: absolute;
+  bottom: -1.3rem;
+  font-size: 0.6rem;
+  color: var(--gray);
+}
+
+.rank__by {
+  color: var(--gray);
+  font-weight: 400;
+  font-family: var(--font-text), serif;
+  font-style: italic;
+}
+/* ligne de titre : titre tronqué mais artiste toujours visible */
+.trk {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.trk__title {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trk__by {
+  font-family: var(--font-text), serif;
+  font-style: italic;
+  color: var(--gray);
+  font-size: 0.9rem;
+  flex: none;
+  white-space: nowrap;
+}
+.v--name {
+  font-family: var(--font-display), sans-serif !important;
+  font-weight: 700;
+  color: var(--ink) !important;
+}
+
+.period-nav {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.period-nav a {
+  text-decoration: none;
+  color: var(--gray);
+}
+.period-nav a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.3em;
+}
+
+@media (max-width: 640px) {
+  .spine {
+    width: 52px;
+  }
+  .flow {
+    margin-left: 66px;
+  }
+}
+
+/* ── page de connexion ── */
+.login {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+.login__card {
+  width: min(28rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  border: 1px solid var(--rule);
+  padding: clamp(1.5rem, 5vw, 2.5rem);
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+}
+.login__brand {
+  margin-bottom: 0.25rem;
+}
+.login__tag {
+  font-family: var(--font-text), serif;
+  font-style: italic;
+  color: var(--gray);
+  margin: 0 0 1.5rem;
+}
+.login__label {
+  font-family: var(--font-data);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+.login__input {
+  font-size: 1.1rem;
+  padding: 0.6em 0.7em;
+  background: transparent;
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+  width: 100%;
+}
+.login__error {
+  color: var(--pink);
+  mix-blend-mode: multiply;
+  font-size: 0.8rem;
+  margin: 0.2rem 0 0;
+}
+.login__submit {
+  margin-top: 1rem;
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.7em 1em;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  cursor: pointer;
+}
+.login__submit:hover {
+  background: var(--blue);
+}
+
+/* ── mini-lecteur persistant (mobile) ── */
+.miniplayer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  display: none; /* affiché en mobile seulement */
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.9rem calc(0.5rem + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--rule);
+  text-decoration: none;
+  color: var(--ink);
+}
+.miniplayer__art {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  flex: none;
+  background: var(--rule);
+}
+.miniplayer__mark {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+.miniplayer__track {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.miniplayer__title {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.miniplayer__artist {
+  font-family: var(--font-text), serif;
+  font-style: italic;
+  color: var(--gray);
+  font-size: 0.85rem;
+  flex: none;
+  white-space: nowrap;
+}
+.miniplayer__status {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gray);
+  white-space: nowrap;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.miniplayer__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--pink);
+}
+
+@media (max-width: 640px) {
+  .miniplayer {
+    display: flex;
+  }
+  /* place pour la barre + home indicator iPhone */
+  .year {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+  /* évite le doublon avec le now-playing du dashboard */
+  .np-inline {
+    display: none;
+  }
+}
