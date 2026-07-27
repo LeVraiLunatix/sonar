@@ -21,8 +21,12 @@ export async function GET(req: Request) {
   try {
     const session = await getSession(apiKey, secret, token);
     username = session.name;
-  } catch {
-    return NextResponse.redirect(new URL("/login?error=lastfm", origin), { status: 303 });
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : "erreur inconnue";
+    return NextResponse.redirect(
+      new URL(`/login?error=lastfm&detail=${encodeURIComponent(detail)}`, origin),
+      { status: 303 },
+    );
   }
 
   // Phase 1 : tant que les données ne sont pas séparées par utilisateur,

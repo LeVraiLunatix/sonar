@@ -6,9 +6,9 @@ export const metadata: Metadata = { title: "Connexion" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; denied?: string }>;
+  searchParams: Promise<{ error?: string; denied?: string; detail?: string }>;
 }) {
-  const { error, denied } = await searchParams;
+  const { error, denied, detail } = await searchParams;
 
   return (
     <main className="login">
@@ -32,6 +32,7 @@ export default async function LoginPage({
             {error === "config"
               ? "connexion Last.fm non configurée (clé / secret manquants)"
               : "la connexion Last.fm a échoué, réessaie"}
+            {detail ? <><br />↳ {detail}</> : null}
           </p>
         ) : null}
 
