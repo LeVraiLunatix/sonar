@@ -7,7 +7,7 @@ import sharp from "sharp";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-const PAPER = "#EDEAD8";
+const PAPER = "#EDE4CB";
 const PINK = "#FF4FA3";
 const BLUE = "#2E4FD6";
 const INK = "#1C1A17";

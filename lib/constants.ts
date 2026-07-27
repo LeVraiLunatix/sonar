@@ -6,7 +6,7 @@ export const FALLBACK_TRACK_MS = 210_000; // 3 min 30
 
 /** Palette riso — miroir des tokens CSS (voir app/globals.css). */
 export const INK = {
-  paper: "#EDEAD8",
+  paper: "#EDE4CB",
   pink: "#FF4FA3",
   blue: "#2E4FD6",
   overlay: "#5B2E86", // ne JAMAIS poser à la main dans le rendu : multiply only
