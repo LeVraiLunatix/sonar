@@ -1,0 +1,48 @@
+import { NextResponse } from "next/server";
+import { getSession } from "@/lib/lastfm-auth";
+import { SESSION_COOKIE, signSession } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const origin = url.origin;
+  const token = url.searchParams.get("token");
+
+  const apiKey = process.env.LASTFM_API_KEY;
+  const secret = process.env.LASTFM_API_SECRET;
+  const authSecret = process.env.AUTH_SECRET;
+
+  if (!token || !apiKey || !secret || !authSecret) {
+    return NextResponse.redirect(new URL("/login?error=config", origin), { status: 303 });
+  }
+
+  let username: string;
+  try {
+    const session = await getSession(apiKey, secret, token);
+    username = session.name;
+  } catch {
+    return NextResponse.redirect(new URL("/login?error=lastfm", origin), { status: 303 });
+  }
+
+  // Phase 1 : tant que les données ne sont pas séparées par utilisateur,
+  // on n'autorise que le propriétaire (ALLOW_ALL_USERS=1 ouvrira à tous en phase 2).
+  const owner = (process.env.LASTFM_USER ?? "").toLowerCase();
+  const allowAll = process.env.ALLOW_ALL_USERS === "1";
+  if (!allowAll && username.toLowerCase() !== owner) {
+    return NextResponse.redirect(
+      new URL(`/login?denied=${encodeURIComponent(username)}`, origin),
+      { status: 303 },
+    );
+  }
+
+  const res = NextResponse.redirect(new URL("/", origin), { status: 303 });
+  res.cookies.set(SESSION_COOKIE, await signSession(username, authSecret), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  return res;
+}

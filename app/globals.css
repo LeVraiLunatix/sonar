@@ -824,22 +824,29 @@ a {
   color: var(--pink);
   mix-blend-mode: multiply;
   font-size: 0.8rem;
-  margin: 0.2rem 0 0;
+  margin: 0.6rem 0 0;
 }
-.login__submit {
-  margin-top: 1rem;
+.login__lastfm {
+  display: inline-block;
+  margin-top: 0.5rem;
+  text-align: center;
+  text-decoration: none;
   font-family: var(--font-data);
-  font-size: 0.78rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  padding: 0.7em 1em;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  padding: 0.9em 1.1em;
   background: var(--ink);
   color: var(--paper);
   border: none;
-  cursor: pointer;
 }
-.login__submit:hover {
-  background: var(--blue);
+.login__lastfm:hover {
+  background: var(--pink);
+}
+.login__note {
+  font-size: 0.66rem;
+  color: var(--gray);
+  margin: 1.5rem 0 0;
+  line-height: 1.5;
 }
 
 /* ── mini-lecteur persistant (mobile) ── */

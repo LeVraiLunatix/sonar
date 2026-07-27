@@ -6,38 +6,39 @@ export const metadata: Metadata = { title: "Connexion" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; next?: string }>;
+  searchParams: Promise<{ error?: string; denied?: string }>;
 }) {
-  const { error, next } = await searchParams;
+  const { error, denied } = await searchParams;
 
   return (
     <main className="login">
-      <form className="login__card" method="post" action="/api/login">
+      <div className="login__card">
         <div className="login__brand">
           <Logo />
         </div>
-        <p className="login__tag">archive privée</p>
+        <p className="login__tag">ton archive d’écoute, connecte-toi avec Last.fm</p>
 
-        <label className="login__label" htmlFor="password">
-          mot de passe
-        </label>
-        <input
-          className="login__input mono"
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          autoFocus
-          required
-        />
-        <input type="hidden" name="next" value={next ?? "/"} />
+        <a className="login__lastfm" href="/api/auth/login">
+          Se connecter avec Last.fm
+        </a>
 
-        {error ? <p className="login__error mono">mot de passe incorrect</p> : null}
+        {denied ? (
+          <p className="login__error mono">
+            {denied} : l’accès multi-utilisateur n’est pas encore ouvert.
+          </p>
+        ) : null}
+        {error ? (
+          <p className="login__error mono">
+            {error === "config"
+              ? "connexion Last.fm non configurée (clé / secret manquants)"
+              : "la connexion Last.fm a échoué, réessaie"}
+          </p>
+        ) : null}
 
-        <button className="login__submit" type="submit">
-          entrer
-        </button>
-      </form>
+        <p className="login__note mono">
+          Sonar ne lit que tes écoutes publiques. Aucun mot de passe ne transite ici.
+        </p>
+      </div>
     </main>
   );
 }

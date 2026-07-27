@@ -1,20 +1,49 @@
 /**
- * Auth mono-utilisateur, minimale et compatible Edge (middleware).
- * Un seul mot de passe (SITE_PASSWORD) ouvre un cookie de session signé,
- * dont la valeur dérive de AUTH_SECRET (inguessable sans le secret).
+ * Session mono-cookie signée, compatible Edge (middleware) et Node (routes).
+ * Le cookie contient le pseudo Last.fm + une signature HMAC(AUTH_SECRET) :
+ * inforgeable sans le secret, lisible sans base de données.
  */
-export const AUTH_COOKIE = "sonar_auth";
+export const SESSION_COOKIE = "sonar_session";
 
-/** Jeton de session déterministe dérivé du secret (SHA-256, résistant à la préimage). */
-export async function sessionToken(secret: string): Promise<string> {
-  const data = new TextEncoder().encode(`${secret}::sonar-session-v1`);
-  const buf = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(buf))
+async function hmacHex(secret: string, message: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(sig))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
 
-/** L'auth n'est active que si les deux variables sont présentes (sinon : ouvert, ex. en dev). */
+/** Fabrique la valeur de cookie pour un pseudo. */
+export async function signSession(username: string, secret: string): Promise<string> {
+  const sig = await hmacHex(secret, username);
+  return `${encodeURIComponent(username)}.${sig}`;
+}
+
+/** Vérifie un cookie et renvoie le pseudo, ou null si invalide. */
+export async function readSession(
+  cookieValue: string | undefined,
+  secret: string,
+): Promise<string | null> {
+  if (!cookieValue) return null;
+  const i = cookieValue.lastIndexOf(".");
+  if (i < 1) return null;
+  const username = decodeURIComponent(cookieValue.slice(0, i));
+  const sig = cookieValue.slice(i + 1);
+  const expected = await hmacHex(secret, username);
+  // comparaison en temps constant
+  if (sig.length !== expected.length) return null;
+  let diff = 0;
+  for (let k = 0; k < sig.length; k++) diff |= sig.charCodeAt(k) ^ expected.charCodeAt(k);
+  return diff === 0 ? username : null;
+}
+
+/** L'auth n'est active que si AUTH_SECRET est défini (sinon : ouvert, ex. dev). */
 export function authConfigured(): boolean {
-  return !!process.env.AUTH_SECRET && !!process.env.SITE_PASSWORD;
+  return !!process.env.AUTH_SECRET;
 }
