@@ -14,6 +14,8 @@ import TopBar from "@/components/TopBar";
 import NowPlaying from "@/components/NowPlaying";
 import AmplitudeStrip from "@/components/AmplitudeStrip";
 import RecentList from "@/components/RecentList";
+import Reveal from "@/components/Reveal";
+import CountUp from "@/components/CountUp";
 
 export const dynamic = "force-dynamic";
 
@@ -47,25 +49,27 @@ export default async function Home() {
           <NowPlaying />
         </div>
 
-        <section className="ann">
+        <Reveal as="section" className="ann">
           <p className="ann__label">
             depuis toujours{data.lifetime.first ? ` · premier scrobble le ${frDate(data.lifetime.first)}` : ""}
             {data.source === "fixtures" ? " · données fictives" : ""}
           </p>
           <span className="big">
             <span className="big__ghost" aria-hidden="true">{nf(data.lifetime.total)}</span>
-            <span className="big__ink">{nf(data.lifetime.total)}</span>
+            <span className="big__ink">
+              <CountUp value={data.lifetime.total} />
+            </span>
           </span>
           <p className="prose" style={{ marginTop: "0.75rem" }}>
             <span className="big__unit">scrobbles</span> enregistrés. Ci-dessous, les 90 derniers jours.
           </p>
-        </section>
+        </Reveal>
 
-        <section className="ann" aria-label="90 derniers jours">
+        <Reveal as="section" className="ann">
           <AmplitudeStrip days={data.last90} />
-        </section>
+        </Reveal>
 
-        <section className="ann">
+        <Reveal as="section" className="ann">
           <p className="ann__label">en ce moment</p>
           <ul className="tiles">
             {tiles.map((t) => (
@@ -77,12 +81,12 @@ export default async function Home() {
               </li>
             ))}
           </ul>
-        </section>
+        </Reveal>
 
-        <section className="ann">
+        <Reveal as="section" className="ann">
           <p className="ann__label">derniers scrobbles</p>
           <RecentList rows={data.recent} />
-        </section>
+        </Reveal>
 
         <nav className="ann" aria-label="Par année" style={{ paddingBottom: "4rem" }}>
           <p className="ann__label">par année</p>

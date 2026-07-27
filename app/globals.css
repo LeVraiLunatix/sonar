@@ -212,7 +212,10 @@ a {
 /* ── le grand chiffre (les chiffres sont la typo d'affichage) ── */
 .big {
   position: relative;
-  isolation: var(--ink-isolate);
+  /* TOUJOURS isoler (pas var(--ink-isolate)) : le fantôme est en z-index:-1,
+     sans contexte d'empilement il passe derrière le fond et disparaît —
+     c'est ce qui cassait le décalage rose en thème clair. */
+  isolation: isolate;
   display: inline-block;
   line-height: 0.84;
 }
@@ -823,6 +826,320 @@ a {
   .ann__label {
     overflow-wrap: anywhere;
   }
+}
+
+/* ═══════════ animations ═══════════
+   L'encre « se pose » : léger décalage de calage + montée en opacité.
+   Rien ne bouge en boucle ; chaque bloc ne s'anime qu'une fois. */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* les barres de classement poussent depuis le bord */
+@keyframes ink-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.rank__seg {
+  transform-origin: left center;
+  animation: ink-grow 0.75s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+/* la heatmap se révèle case par case, en vagues */
+@keyframes ink-fade {
+  from {
+    opacity: 0;
+  }
+}
+.heat i {
+  animation: ink-fade 0.5s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rank__seg,
+  .heat i,
+  .clock__bar {
+    animation: none !important;
+  }
+}
+
+/* survol : l'encre se densifie légèrement */
+.rank:hover .rank__seg--now,
+.rank:hover .rank__seg--a {
+  filter: saturate(1.15);
+}
+
+/* ═══════════ page d'accueil publique ═══════════ */
+.landing {
+  max-width: 68ch;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 3.5vw, 2.75rem);
+  padding-bottom: 6rem;
+}
+.landing__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: clamp(3rem, 12vh, 7rem);
+}
+
+.landing__hero {
+  margin-bottom: clamp(2.5rem, 8vh, 5rem);
+}
+.landing__h1 {
+  margin: 0.5rem 0 0;
+  font-weight: 400;
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+.landing__unit {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.1rem, 3vw, 1.9rem);
+  letter-spacing: -0.01em;
+}
+.landing__lede {
+  margin-top: 1.5rem;
+  font-size: clamp(1.05rem, 2.2vw, 1.3rem);
+  max-width: 42ch;
+}
+.landing__cta {
+  display: flex;
+  align-items: center;
+  gap: 1rem 1.4rem;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+}
+
+.btn {
+  display: inline-block;
+  text-decoration: none;
+  font-family: var(--font-data);
+  letter-spacing: 0.06em;
+  line-height: 1;
+  cursor: pointer;
+}
+.btn--solid {
+  font-size: 0.9rem;
+  padding: 1em 1.3em;
+  background: var(--ink);
+  color: var(--paper);
+  border: 1.5px solid var(--ink);
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    transform 0.25s ease;
+}
+.btn--solid:hover {
+  background: var(--pink);
+  border-color: var(--pink);
+  color: var(--paper);
+  transform: translate(-2px, -2px);
+}
+.btn--ghost {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  padding: 0.7em 0.95em;
+  border: 1.5px solid var(--ink);
+  color: var(--ink);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.btn--ghost:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn--solid:hover {
+    transform: none;
+  }
+}
+
+.landing__wave {
+  margin: clamp(2rem, 6vh, 4rem) 0 clamp(3rem, 10vh, 6rem);
+}
+.landing__wavecap {
+  margin-top: 0.8rem;
+  max-width: 44ch;
+  line-height: 1.6;
+}
+
+.landing__block {
+  margin-bottom: clamp(3.5rem, 12vh, 7rem);
+}
+.landing__h2 {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: clamp(1.5rem, 4.5vw, 2.6rem);
+  line-height: 1.08;
+  margin: 0.4rem 0 1rem;
+  max-width: 20ch;
+}
+.landing__h2 em {
+  font-family: var(--font-text), serif;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* ── étapes ── */
+.steps {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+.step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.2rem;
+  align-items: start;
+}
+.step__n {
+  font-size: clamp(1.6rem, 5vw, 2.6rem);
+  color: var(--pink);
+  mix-blend-mode: multiply;
+  line-height: 1;
+}
+.step__title {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin: 0 0 0.35rem;
+}
+
+/* ── démo de surimpression ── */
+.inkdemo {
+  margin-top: 2rem;
+}
+.inkdemo__stage {
+  position: relative;
+  height: 3.2rem;
+  isolation: isolate;
+  border-bottom: 1px solid var(--rule);
+}
+.inkdemo__bar {
+  position: absolute;
+  left: 0;
+  height: 2.2rem;
+  mix-blend-mode: multiply;
+}
+.inkdemo__bar--a {
+  top: 0;
+  background: var(--pink);
+}
+.inkdemo__bar--b {
+  top: 0.7rem;
+  background: var(--blue);
+}
+.inkdemo__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.4rem;
+  margin-top: 1rem;
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.inkdemo__key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--gray);
+}
+.inkdemo__key::before {
+  content: "";
+  width: 0.85rem;
+  height: 0.85rem;
+  flex: none;
+}
+.inkdemo__key--a::before {
+  background: var(--pink);
+}
+.inkdemo__key--b::before {
+  background: var(--blue);
+}
+.inkdemo__key--x::before {
+  background: #5b2e86; /* la seule mention littérale : c'est la légende */
+}
+.inkdemo__control {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  max-width: 26rem;
+}
+.inkdemo__control .k {
+  font-family: var(--font-data);
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+.inkdemo__control input[type="range"] {
+  width: 100%;
+  accent-color: var(--blue);
+}
+
+/* ── liste des fonctionnalités (pas de cartes) ── */
+.feats {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.feat {
+  display: grid;
+  grid-template-columns: minmax(9rem, 14rem) 1fr;
+  gap: 0.4rem 1.5rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.feat__k {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.feat__v {
+  color: var(--gray);
+  line-height: 1.5;
+}
+@media (max-width: 640px) {
+  .feat {
+    grid-template-columns: 1fr;
+  }
+  .step {
+    gap: 0.9rem;
+  }
+}
+
+.landing__end {
+  border-top: 1px solid var(--rule);
+  padding-top: clamp(2.5rem, 8vh, 4rem);
 }
 
 /* ── compte connecté ── */

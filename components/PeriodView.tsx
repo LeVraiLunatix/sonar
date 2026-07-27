@@ -6,13 +6,16 @@ import CompareRanks from "./CompareRanks";
 import Heatmap from "./Heatmap";
 import Clock from "./Clock";
 import TopBar from "./TopBar";
+import Reveal from "./Reveal";
+import CountUp from "./CountUp";
 
 function BigNumber({ value }: { value: number }) {
-  const s = nf(value);
   return (
     <span className="big">
-      <span className="big__ghost" aria-hidden="true">{s}</span>
-      <span className="big__ink">{s}</span>
+      <span className="big__ghost" aria-hidden="true">{nf(value)}</span>
+      <span className="big__ink">
+        <CountUp value={value} />
+      </span>
     </span>
   );
 }
@@ -46,7 +49,7 @@ export default function PeriodView({
       <div className="flow">
         <TopBar current={navCurrent} />
 
-        <section className="ann">
+        <Reveal as="section" className="ann">
           <p className="ann__label">
             {kind === "year" ? "archive" : kind} · {data.label}
             {data.source === "fixtures" ? " · données fictives" : ""}
@@ -64,27 +67,27 @@ export default function PeriodView({
               <div><span className="v">{streak} j</span><span className="k">plus longue série</span></div>
             )}
           </div>
-        </section>
+        </Reveal>
 
         {topArtists.length > 0 && (
-          <section className="ann">
+          <Reveal as="section" className="ann">
             <p className="ann__label">artistes — vs période précédente</p>
             <CompareRanks artists={topArtists} prev={data.prevArtist} />
             <p className="note" style={{ marginTop: "1rem" }}>
               barre rose : cette période. trait bleu : la précédente. le violet est leur recouvrement.
             </p>
-          </section>
+          </Reveal>
         )}
 
         {summary.scrobbles > 0 && (
-          <section className="ann">
+          <Reveal as="section" className="ann">
             <p className="ann__label">à quelle heure ça écoute</p>
             <Clock hours={perHour} />
-          </section>
+          </Reveal>
         )}
 
         {withHeat && (
-          <section className="ann">
+          <Reveal as="section" className="ann">
             <p className="ann__label">jour par jour</p>
             <Heatmap days={perDay} />
             {peak && (
@@ -92,11 +95,11 @@ export default function PeriodView({
                 Jour le plus dense : le {peak.day} — {nf(peak.count)} scrobbles.
               </p>
             )}
-          </section>
+          </Reveal>
         )}
 
         {topTracks.length > 0 && (
-          <section className="ann">
+          <Reveal as="section" className="ann">
             <p className="ann__label">titres les plus écoutés</p>
             <ol className="ranks">
               {topTracks.slice(0, 8).map((t, i) => (
@@ -114,11 +117,11 @@ export default function PeriodView({
                 </li>
               ))}
             </ol>
-          </section>
+          </Reveal>
         )}
 
         {discoveries.length > 0 && (
-          <section className="ann">
+          <Reveal as="section" className="ann">
             <p className="ann__label">découvertes — premier scrobble dans la période</p>
             <ul className="ranks">
               {discoveries.slice(0, 8).map((d) => (
@@ -128,7 +131,7 @@ export default function PeriodView({
                 </li>
               ))}
             </ul>
-          </section>
+          </Reveal>
         )}
 
         <nav className="ann period-nav" aria-label="Navigation période" style={{ paddingBottom: "4rem" }}>
