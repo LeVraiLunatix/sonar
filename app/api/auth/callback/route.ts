@@ -18,9 +18,11 @@ export async function GET(req: Request) {
   }
 
   let username: string;
+  let sessionKey: string;
   try {
     const session = await getSession(apiKey, secret, token);
     username = session.name;
+    sessionKey = session.key;
   } catch (e) {
     const detail = e instanceof Error ? e.message : "erreur inconnue";
     return NextResponse.redirect(
@@ -43,8 +45,10 @@ export async function GET(req: Request) {
   let destination = "/";
   if (process.env.DATABASE_URL) {
     try {
-      const { upsertAccount } = await import("@/lib/accounts");
+      const { upsertAccount, setSessionKey } = await import("@/lib/accounts");
       const acc = await upsertAccount(username);
+      // clé de session conservée côté serveur pour « j'aime »
+      await setSessionKey(username, sessionKey);
       if (acc.backfill_status !== "done") destination = "/onboarding";
     } catch {
       // base indisponible : on laisse entrer, les pages afficheront l'erreur

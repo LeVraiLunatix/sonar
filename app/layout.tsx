@@ -3,6 +3,8 @@ import { Bricolage_Grotesque, Newsreader } from "next/font/google";
 import "./globals.css";
 import SWRegister from "@/components/SWRegister";
 import MiniPlayer from "@/components/MiniPlayer";
+import AutoSync from "@/components/AutoSync";
+import SmoothScroll from "@/components/SmoothScroll";
 
 const display = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -54,6 +56,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
         {children}
         <MiniPlayer />
+        <AutoSync />
+        <SmoothScroll />
         <SWRegister />
       </body>
     </html>

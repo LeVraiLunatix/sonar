@@ -4,18 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import { nf } from "@/lib/format";
 
 /**
- * Compteur qui s'incrémente jusqu'à sa valeur quand il entre dans le champ.
- * Cohérent avec le sujet : un scrobble, c'est un compteur qui monte.
- * Affiche directement la valeur finale si prefers-reduced-motion.
+ * Grand chiffre en deux encres. Les DEUX couches (fantôme rose et encre)
+ * affichent la même valeur à chaque image — sinon le décalage de calage
+ * montre des chiffres différents pendant que le compteur monte.
  */
-export default function CountUp({
+export default function BigCount({
   value,
-  duration = 1100,
   suffix = "",
+  duration = 1100,
 }: {
   value: number;
-  duration?: number;
   suffix?: string;
+  duration?: number;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [n, setN] = useState(value);
@@ -38,7 +38,6 @@ export default function CountUp({
         const t0 = performance.now();
         const tick = (t: number) => {
           const p = Math.min(1, (t - t0) / duration);
-          // easing doux en fin de course
           const eased = 1 - Math.pow(1 - p, 3);
           setN(Math.round(value * eased));
           if (p < 1) requestAnimationFrame(tick);
@@ -51,10 +50,14 @@ export default function CountUp({
     return () => io.disconnect();
   }, [value, duration]);
 
+  const text = nf(n) + suffix;
+
   return (
-    <span ref={ref}>
-      {nf(n)}
-      {suffix}
+    <span className="big" ref={ref}>
+      <span className="big__ghost" aria-hidden="true">
+        {text}
+      </span>
+      <span className="big__ink">{text}</span>
     </span>
   );
 }

@@ -63,6 +63,25 @@ export async function setBackfillState(
   `;
 }
 
+/**
+ * Enregistre la clé de session Last.fm du compte (méthodes d'écriture).
+ * ⚠️ Identifiant : ne jamais renvoyer cette valeur au client.
+ */
+export async function setSessionKey(username: string, key: string): Promise<void> {
+  await sql`
+    update accounts set lastfm_session_key = ${key}
+    where username_key = ${username.toLowerCase()}
+  `;
+}
+
+/** Lecture côté serveur uniquement. */
+export async function getSessionKey(username: string): Promise<string | null> {
+  const [row] = await sql<{ lastfm_session_key: string | null }[]>`
+    select lastfm_session_key from accounts where username_key = ${username.toLowerCase()}
+  `;
+  return row?.lastfm_session_key ?? null;
+}
+
 export async function markSynced(username: string): Promise<void> {
   await sql`
     update accounts set last_sync_at = now()

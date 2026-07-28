@@ -7,16 +7,15 @@ import Heatmap from "./Heatmap";
 import Clock from "./Clock";
 import TopBar from "./TopBar";
 import Reveal from "./Reveal";
-import CountUp from "./CountUp";
+import BigCount from "./BigCount";
 
-function BigNumber({ value }: { value: number }) {
+/** Petite brique de statistique — une valeur, un intitulé. */
+function Stat({ v, k, delay = 0 }: { v: string; k: string; delay?: number }) {
   return (
-    <span className="big">
-      <span className="big__ghost" aria-hidden="true">{nf(value)}</span>
-      <span className="big__ink">
-        <CountUp value={value} />
-      </span>
-    </span>
+    <Reveal as="section" className="ann ann--stat" delay={delay}>
+      <span className="stat__v">{v}</span>
+      <span className="stat__k">{k}</span>
+    </Reveal>
   );
 }
 
@@ -36,7 +35,17 @@ export default function PeriodView({
   nav: PeriodNav;
   navCurrent: string;
 }) {
-  const { summary, perDay, perHour, topArtists, topTracks, discoveries, streak, kind } = data;
+  const {
+    summary,
+    perDay,
+    perHour,
+    topArtists,
+    topAlbums,
+    topTracks,
+    discoveries,
+    streak,
+    kind,
+  } = data;
   const withSpine = perDay.length >= 14;
   const withHeat = perDay.length >= 28;
   const activeDays = perDay.filter((d) => d.count > 0).length;
@@ -49,32 +58,38 @@ export default function PeriodView({
       <div className="flow">
         <TopBar current={navCurrent} />
 
-        <Reveal as="section" className="ann">
+        {/* ── en-tête : pleine largeur ── */}
+        <Reveal as="section" className="ann ann--head">
           <p className="ann__label">
             {kind === "year" ? "archive" : kind} · {data.label}
             {data.source === "fixtures" ? " · données fictives" : ""}
           </p>
-          <BigNumber value={summary.scrobbles} />
+          <BigCount value={summary.scrobbles} />
           <p className="prose" style={{ marginTop: "0.75rem" }}>
             <span className="big__unit">scrobbles</span>
             {activeDays > 1 ? `, sur ${activeDays} jours d’écoute.` : "."}
           </p>
-          <div className="tallies">
-            <div><span className="v">{nf(summary.artists)}</span><span className="k">artistes</span></div>
-            <div><span className="v">{nf(summary.tracks)}</span><span className="k">titres uniques</span></div>
-            <div><span className="v">~{humanMs(summary.estMs)}</span><span className="k">d’écoute estimée</span></div>
-            {streak > 1 && (
-              <div><span className="v">{streak} j</span><span className="k">plus longue série</span></div>
-            )}
-          </div>
         </Reveal>
+
+        {/* ── briques de chiffres ── */}
+        <Stat v={nf(summary.artists)} k="artistes" />
+        <Stat v={nf(summary.tracks)} k="titres uniques" delay={60} />
+        <Stat v={`~${humanMs(summary.estMs)}`} k="d’écoute estimée" delay={120} />
+        {streak > 1 && <Stat v={`${streak} j`} k="plus longue série" delay={180} />}
+        {activeDays > 0 && (
+          <Stat v={nf(activeDays)} k="jours avec écoute" delay={240} />
+        )}
+        {peak && peak.count > 0 && (
+          <Stat v={nf(peak.count)} k={`record — ${peak.day}`} delay={300} />
+        )}
 
         {topArtists.length > 0 && (
           <Reveal as="section" className="ann">
             <p className="ann__label">artistes — vs période précédente</p>
             <CompareRanks artists={topArtists} prev={data.prevArtist} />
             <p className="note" style={{ marginTop: "1rem" }}>
-              barre rose : cette période. trait bleu : la précédente. le violet est leur recouvrement.
+              barre rose : cette période. trait bleu : la précédente. le violet est
+              leur recouvrement.
             </p>
           </Reveal>
         )}
@@ -83,18 +98,6 @@ export default function PeriodView({
           <Reveal as="section" className="ann">
             <p className="ann__label">à quelle heure ça écoute</p>
             <Clock hours={perHour} />
-          </Reveal>
-        )}
-
-        {withHeat && (
-          <Reveal as="section" className="ann">
-            <p className="ann__label">jour par jour</p>
-            <Heatmap days={perDay} />
-            {peak && (
-              <p className="prose" style={{ marginTop: "1rem" }}>
-                Jour le plus dense : le {peak.day} — {nf(peak.count)} scrobbles.
-              </p>
-            )}
           </Reveal>
         )}
 
@@ -120,6 +123,28 @@ export default function PeriodView({
           </Reveal>
         )}
 
+        {topAlbums.length > 0 && (
+          <Reveal as="section" className="ann">
+            <p className="ann__label">albums les plus écoutés</p>
+            <ol className="ranks">
+              {topAlbums.slice(0, 6).map((a, i) => (
+                <li
+                  className="rank"
+                  key={`${a.artist}-${a.album}-${i}`}
+                  style={{ gridTemplateColumns: "1.4em minmax(0, 1fr) auto" }}
+                >
+                  <span className="rank__n mono">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="trk">
+                    <span className="trk__title">{a.album}</span>
+                    <span className="trk__by">{a.artist}</span>
+                  </span>
+                  <span className="rank__val">{nf(a.count)}</span>
+                </li>
+              ))}
+            </ol>
+          </Reveal>
+        )}
+
         {discoveries.length > 0 && (
           <Reveal as="section" className="ann">
             <p className="ann__label">découvertes — premier scrobble dans la période</p>
@@ -134,7 +159,24 @@ export default function PeriodView({
           </Reveal>
         )}
 
-        <nav className="ann period-nav" aria-label="Navigation période" style={{ paddingBottom: "4rem" }}>
+        {/* ── la carte de l'année : pleine largeur ── */}
+        {withHeat && (
+          <Reveal as="section" className="ann ann--wide">
+            <p className="ann__label">jour par jour</p>
+            <Heatmap days={perDay} />
+            {peak && (
+              <p className="prose" style={{ marginTop: "1rem" }}>
+                Jour le plus dense : le {peak.day} — {nf(peak.count)} scrobbles.
+              </p>
+            )}
+          </Reveal>
+        )}
+
+        <nav
+          className="ann period-nav"
+          aria-label="Navigation période"
+          style={{ paddingBottom: "4rem" }}
+        >
           <Link href={nav.prevHref} className="mono">← {nav.prevLabel}</Link>
           <Link href={nav.nextHref} className="mono">{nav.nextLabel} →</Link>
         </nav>

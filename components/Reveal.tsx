@@ -24,10 +24,16 @@ export default function Reveal({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+
+    // Pas d'animation demandée, ou observateur indisponible → on montre tout de suite.
+    if (
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      typeof IntersectionObserver === "undefined"
+    ) {
       setShown(true);
       return;
     }
+
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
@@ -40,7 +46,20 @@ export default function Reveal({
       { rootMargin: "0px 0px -12% 0px", threshold: 0.05 },
     );
     io.observe(el);
-    return () => io.disconnect();
+
+    /* Filet de sécurité : l'animation est un bonus, pas une condition
+       d'affichage. Si l'observateur ne se déclenche pas (onglet non rendu,
+       cas limite du navigateur…), le contenu apparaît quand même — il ne doit
+       jamais rester invisible. */
+    const fallback = window.setTimeout(() => {
+      setShown(true);
+      io.disconnect();
+    }, 1500);
+
+    return () => {
+      window.clearTimeout(fallback);
+      io.disconnect();
+    };
   }, []);
 
   return (

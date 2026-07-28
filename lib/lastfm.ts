@@ -26,6 +26,7 @@ export type NowPlaying = {
   artist: string;
   album: string | null;
   image_url: string | null;
+  loved: boolean;
 };
 
 export type RecentPage = {
@@ -81,7 +82,7 @@ function parseTrack(t: RawTrack): { scrobble?: Scrobble; nowPlaying?: NowPlaying
   // Le morceau en cours : @attr.nowplaying = "true" et pas de champ date.
   if (t["@attr"]?.nowplaying === "true" || !t.date?.uts) {
     if (!track || !artist) return {};
-    return { nowPlaying: { track, artist, album, image_url } };
+    return { nowPlaying: { track, artist, album, image_url, loved: t.loved === "1" } };
   }
 
   if (!track || !artist) return {};

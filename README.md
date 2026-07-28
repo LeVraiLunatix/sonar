@@ -65,28 +65,48 @@ npm run dev           # http://localhost:3000
 
 ### 5. Sync automatique (en prod)
 
-`vercel.json` déclenche `/api/cron/sync` toutes les 30 min. Sur Vercel, ajoute
-`CRON_SECRET` en variable d'environnement (le cron doit envoyer
-`Authorization: Bearer <CRON_SECRET>`). En local : `npm run sync`.
+`vercel.json` déclenche `/api/cron/sync` une fois par jour (le plan Vercel
+gratuit n'autorise qu'un cron quotidien). Sur Vercel, ajoute `CRON_SECRET` en
+variable d'environnement (le cron doit envoyer `Authorization: Bearer
+<CRON_SECRET>`). En local : `npm run sync`.
+
+Entre deux passages du cron, le site se met à jour tout seul : `AutoSync`
+appelle `/api/sync/self` à l'ouverture, toutes les 60 s et au retour sur
+l'onglet — avec un garde-fou de fréquence, et un rafraîchissement de la page
+uniquement si de nouveaux scrobbles sont réellement arrivés.
 
 ## Structure
 
 ```
 app/
-  page.tsx                accueil (liste des années)
-  year/[year]/page.tsx    le Wrapped annuel — bande verticale continue
-  api/cron/sync/route.ts  endpoint appelé par Vercel Cron
-components/                AmplitudeSpine, CompareRanks, Heatmap, Clock, ThemeToggle
+  page.tsx                  dashboard (en écoute, aujourd'hui/semaine/mois, récents)
+  day|week|month|year/…     les quatre granularités
+  compare/page.tsx          deux périodes en surimpression
+  onboarding/page.tsx       import initial, par tranches, avec progression
+  api/live/route.ts         lecture DIRECTE Last.fm (en cours, récents, jour)
+  api/love/route.ts         track.love — écriture Last.fm
+  api/sync/self/route.ts    sync opportuniste du compte de la session
+  api/backfill/…            import initial piloté depuis le client
+  api/auth/…                OAuth Last.fm (login, callback, logout)
+  api/cron/sync/route.ts    endpoint appelé par Vercel Cron (tous les comptes)
+components/                 MiniPlayer, PeriodView, AmplitudeSpine, Clock, Heatmap,
+                            SmoothScroll, Reveal, BigCount, AutoSync…
 lib/
-  lastfm.ts               client user.getRecentTracks (pièges section 5 gérés)
-  db.ts                   connexion postgres.js (paresseuse)
-  stats.ts                LA requête d'agrégation générique [début, fin]
-  ingest.ts               backfill + sync incrémental
-  year.ts                 source de la page /year (bascule fixtures ↔ base)
-  fixtures.ts             données fictives déterministes
-db/schema.sql             schéma (scrobbles + tracks + artist_tags + …)
-scripts/                  apply-schema, backfill, sync
-reference/hero.html       le hero validé (référence design)
+  lastfm.ts                 client user.getRecentTracks (pièges section 5 gérés)
+  lastfm-auth.ts            OAuth + signature md5 + track.love
+  auth.ts / session.ts      cookie signé HMAC, compte de la session
+  guard.ts                  compte d'une page (+ renvoi vers /onboarding)
+  db.ts                     connexion postgres.js (paresseuse)
+  stats.ts                  LES agrégations, toutes filtrées par compte
+  period.ts                 source des pages (bascule base ↔ fixtures)
+  dates.ts                  plages Europe/Paris, semaines ISO
+  ingest.ts                 backfill par tranches + sync incrémental
+  accounts.ts               comptes, état d'import, clé de session
+  useLive.ts                source temps réel partagée (un seul appel réseau)
+  fixtures.ts               données fictives déterministes
+db/schema.sql               schéma complet · db/migrations/  migrations rejouables
+scripts/                    migrate, apply-schema, backfill, sync, gen-icons
+reference/hero.html         le hero validé (référence design)
 ```
 
 ## Multi-utilisateur
@@ -107,9 +127,20 @@ voit jamais les écoutes d'un autre.
 ⚠️ Ouvrir à tous stocke l'historique de chaque visiteur dans la même base et
 partage un seul quota d'API Last.fm — à surveiller au-delà de quelques comptes.
 
+## Ce que Last.fm permet — et ne permet pas
+
+- **Lecture en direct** : morceau en cours, derniers scrobbles, total du jour
+  (`/api/live`). C'est là que la fraîcheur compte.
+- **Agrégations** : impossibles en direct — les endpoints de stats de Last.fm
+  n'acceptent que des périodes figées (`7day`, `1month`, …). Un mois précis, une
+  journée heure par heure, une série ou une comparaison exigeraient de repaginer
+  tout l'historique à chaque affichage. D'où la base locale.
+- **Écriture** : `track.love` fonctionne (nécessite la clé de session, stockée
+  côté serveur uniquement). **Pause / titre suivant sont impossibles** : Last.fm
+  journalise les écoutes, il ne commande aucun lecteur.
+
 ## Reste à faire (ordre du brief)
 
-Granularités jour / semaine / mois · comparateur `/compare` · pages artiste ·
-temps d'écoute réel (durées Deezer/MusicBrainz) · photos d'artistes Deezer ·
-genres (`artist.getTopTags`) · import des exports RGPD (Spotify/Apple) via la
-colonne `source`.
+Pages artiste · temps d'écoute réel (durées Deezer/MusicBrainz) · photos
+d'artistes Deezer · genres (`artist.getTopTags`) · import des exports RGPD
+(Spotify/Apple) via la colonne `source`.

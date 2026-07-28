@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Logo from "@/components/Logo";
 import Reveal from "@/components/Reveal";
-import CountUp from "@/components/CountUp";
+import BigCount from "@/components/BigCount";
 import InkDemo from "@/components/InkDemo";
 import AmplitudeStrip from "@/components/AmplitudeStrip";
 import type { DayCount } from "@/lib/stats";
@@ -79,14 +79,7 @@ export default async function LandingPage({
         <p className="eyebrow">archive d’écoute · wrapped permanent</p>
 
         <h1 className="landing__h1">
-          <span className="big">
-            <span className="big__ghost" aria-hidden="true">
-              365
-            </span>
-            <span className="big__ink">
-              <CountUp value={365} />
-            </span>
-          </span>
+          <BigCount value={365} />
           <span className="landing__unit">jours par an</span>
         </h1>
 

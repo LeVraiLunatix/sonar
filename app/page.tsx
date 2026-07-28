@@ -11,11 +11,11 @@ import {
 import { accountForPage } from "@/lib/guard";
 import { nf, frDate } from "@/lib/format";
 import TopBar from "@/components/TopBar";
-import NowPlaying from "@/components/NowPlaying";
 import AmplitudeStrip from "@/components/AmplitudeStrip";
-import RecentList from "@/components/RecentList";
+import LiveRecent from "@/components/LiveRecent";
+import LiveToday from "@/components/LiveToday";
 import Reveal from "@/components/Reveal";
-import CountUp from "@/components/CountUp";
+import BigCount from "@/components/BigCount";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +33,8 @@ export default async function Home() {
   });
 
   const tiles = [
-    { href: `/day/${today}`, label: "aujourd’hui", v: data.today.summary.scrobbles },
+    // `live` : la valeur du jour est remplacée par celle lue chez Last.fm
+    { href: `/day/${today}`, label: "aujourd’hui", v: data.today.summary.scrobbles, live: true },
     { href: `/week/${wy}/${week}`, label: "cette semaine", v: data.week.summary.scrobbles },
     { href: `/month/${y}/${m}`, label: "ce mois-ci", v: data.month.summary.scrobbles },
   ];
@@ -45,21 +46,12 @@ export default async function Home() {
       <div className="flow flow--wide">
         <TopBar />
 
-        <div className="np-inline">
-          <NowPlaying />
-        </div>
-
         <Reveal as="section" className="ann">
           <p className="ann__label">
             depuis toujours{data.lifetime.first ? ` · premier scrobble le ${frDate(data.lifetime.first)}` : ""}
             {data.source === "fixtures" ? " · données fictives" : ""}
           </p>
-          <span className="big">
-            <span className="big__ghost" aria-hidden="true">{nf(data.lifetime.total)}</span>
-            <span className="big__ink">
-              <CountUp value={data.lifetime.total} />
-            </span>
-          </span>
+          <BigCount value={data.lifetime.total} />
           <p className="prose" style={{ marginTop: "0.75rem" }}>
             <span className="big__unit">scrobbles</span> enregistrés. Ci-dessous, les 90 derniers jours.
           </p>
@@ -75,7 +67,9 @@ export default async function Home() {
             {tiles.map((t) => (
               <li key={t.href}>
                 <Link href={t.href} className="tile">
-                  <span className="tile__v mono">{nf(t.v)}</span>
+                  <span className="tile__v mono">
+                    {t.live ? <LiveToday initial={t.v} /> : nf(t.v)}
+                  </span>
                   <span className="tile__k">{t.label}</span>
                 </Link>
               </li>
@@ -85,7 +79,7 @@ export default async function Home() {
 
         <Reveal as="section" className="ann">
           <p className="ann__label">derniers scrobbles</p>
-          <RecentList rows={data.recent} />
+          <LiveRecent initial={data.recent} />
         </Reveal>
 
         <nav className="ann" aria-label="Par année" style={{ paddingBottom: "4rem" }}>
