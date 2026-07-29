@@ -3,9 +3,15 @@ import { APP_TZ, FALLBACK_TRACK_MS } from "./constants";
 
 /**
  * Toutes les stats découlent d'UNE plage [start, end) exprimée en dates locales
- * (Europe/Paris) ET d'UN compte. On convertit les bornes en timestamptz via
- * `date at time zone`, correct même autour des changements d'heure : les
- * journées sont calées sur minuit à Paris, pas sur UTC (piège section 5).
+ * (Europe/Paris) ET d'UN compte.
+ *
+ * ⚠️ Bornes : toujours `'YYYY-MM-DD'::timestamp at time zone 'Europe/Paris'`.
+ * NE JAMAIS écrire `::date at time zone` : Postgres promeut alors la date en
+ * `timestamptz` (minuit dans le fuseau de la session), puis `at time zone` la
+ * reconvertit en heure murale — le résultat est un `timestamp` SANS fuseau,
+ * décalé de l'offset, et la journée démarre au mauvais moment. Avec `::timestamp`
+ * la date est bien interprétée comme heure locale et le résultat est un
+ * `timestamptz` correct, y compris autour des changements d'heure.
  *
  * ⚠️ Chaque requête DOIT filtrer sur `account` — c'est ce qui garantit qu'un
  * utilisateur ne voit jamais les écoutes d'un autre.
@@ -27,8 +33,8 @@ export type Summary = {
 /** Fragment WHERE réutilisable : le compte, et played_at dans la plage. */
 const scope = (account: string, r: Range) =>
   sql`account = ${account}
-      and played_at >= (${r.start}::date at time zone ${APP_TZ})
-      and played_at <  (${r.end}::date at time zone ${APP_TZ})`;
+      and played_at >= (${r.start}::timestamp at time zone ${APP_TZ})
+      and played_at <  (${r.end}::timestamp at time zone ${APP_TZ})`;
 
 export async function summary(account: string, r: Range): Promise<Summary> {
   const [row] = await sql<
@@ -43,8 +49,8 @@ export async function summary(account: string, r: Range): Promise<Summary> {
     left join tracks t
       on t.artist_key = lower(s.artist) and t.track_key = lower(s.track)
     where s.account = ${account}
-      and s.played_at >= (${r.start}::date at time zone ${APP_TZ})
-      and s.played_at <  (${r.end}::date at time zone ${APP_TZ})
+      and s.played_at >= (${r.start}::timestamp at time zone ${APP_TZ})
+      and s.played_at <  (${r.end}::timestamp at time zone ${APP_TZ})
   `;
   return {
     scrobbles: row?.scrobbles ?? 0,
@@ -154,14 +160,14 @@ export async function discoveries(
     select lower(artist) as key,
            mode() within group (order by artist) as name,
            count(*) filter (
-             where played_at >= (${r.start}::date at time zone ${APP_TZ})
-               and played_at <  (${r.end}::date at time zone ${APP_TZ})
+             where played_at >= (${r.start}::timestamp at time zone ${APP_TZ})
+               and played_at <  (${r.end}::timestamp at time zone ${APP_TZ})
            )::int as count
     from scrobbles
     where account = ${account}
     group by lower(artist)
-    having min(played_at) >= (${r.start}::date at time zone ${APP_TZ})
-       and min(played_at) <  (${r.end}::date at time zone ${APP_TZ})
+    having min(played_at) >= (${r.start}::timestamp at time zone ${APP_TZ})
+       and min(played_at) <  (${r.end}::timestamp at time zone ${APP_TZ})
     order by count desc, name asc
     limit ${limit}
   `;

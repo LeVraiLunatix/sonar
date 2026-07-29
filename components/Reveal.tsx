@@ -48,13 +48,19 @@ export default function Reveal({
     io.observe(el);
 
     /* Filet de sécurité : l'animation est un bonus, pas une condition
-       d'affichage. Si l'observateur ne se déclenche pas (onglet non rendu,
-       cas limite du navigateur…), le contenu apparaît quand même — il ne doit
-       jamais rester invisible. */
+       d'affichage. Si l'observateur ne s'est pas déclenché alors que le bloc
+       est BIEN VISIBLE à l'écran, on l'affiche quand même.
+       ⚠️ On vérifie la position : révéler aveuglément tous les blocs (y compris
+       hors écran) supprimerait l'apparition au scroll — le bloc suivant serait
+       déjà visible avant qu'on l'atteigne. */
     const fallback = window.setTimeout(() => {
-      setShown(true);
-      io.disconnect();
-    }, 1500);
+      const r = el.getBoundingClientRect();
+      const dansLEcran = r.top < window.innerHeight && r.bottom > 0;
+      if (dansLEcran) {
+        setShown(true);
+        io.disconnect();
+      }
+    }, 1200);
 
     return () => {
       window.clearTimeout(fallback);
