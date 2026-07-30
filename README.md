@@ -139,8 +139,21 @@ partage un seul quota d'API Last.fm — à surveiller au-delà de quelques compt
   côté serveur uniquement). **Pause / titre suivant sont impossibles** : Last.fm
   journalise les écoutes, il ne commande aucun lecteur.
 
+## Enrichissement Deezer
+
+`npm run enrich` résout les **durées de titres** et les **photos d'artistes**
+depuis l'API publique Deezer (aucune clé). Chaque titre / artiste n'est résolu
+**qu'une fois** ; un échec est mémorisé (`source = 'unresolved'`) pour ne pas
+réinterroger Deezer en boucle. Un contrôle de correspondance évite de stocker
+la durée d'un autre morceau. Taux de réussite constaté : ~94 % sur les durées,
+~99 % sur les photos.
+
+Le cron enrichit aussi quelques entrées à chaque passage, pour que les nouveaux
+titres n'en restent pas à l'estimation de 3 min 30. Dès qu'une plage a toutes
+ses durées connues, le « ~ » disparaît devant le temps d'écoute.
+
 ## Reste à faire (ordre du brief)
 
-Pages artiste · temps d'écoute réel (durées Deezer/MusicBrainz) · photos
-d'artistes Deezer · genres (`artist.getTopTags`) · import des exports RGPD
-(Spotify/Apple) via la colonne `source`.
+Genres (`artist.getTopTags`, table `artist_tags` déjà prête) · import des
+exports RGPD Spotify/Apple via les colonnes `source` / `ms_played` / `skipped`
+(temps exact, titres skippés, ratio shuffle, lectures < 30 s).

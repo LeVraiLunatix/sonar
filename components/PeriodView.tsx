@@ -74,7 +74,12 @@ export default function PeriodView({
         {/* ── briques de chiffres ── */}
         <Stat v={nf(summary.artists)} k="artistes" />
         <Stat v={nf(summary.tracks)} k="titres uniques" delay={60} />
-        <Stat v={`~${humanMs(summary.estMs)}`} k="d’écoute estimée" delay={120} />
+        {/* le « ~ » n'apparaît que si des durées manquent encore (voir Deezer) */}
+        <Stat
+          v={`${summary.durationsKnown === summary.scrobbles ? "" : "~"}${humanMs(summary.estMs)}`}
+          k={summary.durationsKnown === summary.scrobbles ? "d’écoute" : "d’écoute estimée"}
+          delay={120}
+        />
         {streak > 1 && <Stat v={`${streak} j`} k="plus longue série" delay={180} />}
         {activeDays > 0 && (
           <Stat v={nf(activeDays)} k="jours avec écoute" delay={240} />
@@ -151,11 +156,95 @@ export default function PeriodView({
             <ul className="ranks">
               {discoveries.slice(0, 8).map((d) => (
                 <li className="rank" key={d.key} style={{ gridTemplateColumns: "1fr auto" }}>
-                  <span className="rank__name" style={{ maxWidth: "none" }}>{d.name}</span>
+                  <Link className="srch__link" href={`/artist/${encodeURIComponent(d.key)}`}>
+                    <span className="trk__title">{d.name}</span>
+                  </Link>
                   <span className="rank__val">{nf(d.count)} écoutes ensuite</span>
                 </li>
               ))}
             </ul>
+          </Reveal>
+        )}
+
+        {data.insights?.showObsessions && data.insights.obsessions.length > 0 && (
+          <Reveal as="section" className="ann">
+            <p className="ann__label">obsessions — concentré sur une semaine</p>
+            <ol className="ranks">
+              {data.insights.obsessions.map((o) => (
+                <li className="rank" key={o.key} style={{ gridTemplateColumns: "1fr auto" }}>
+                  <Link className="srch__link" href={`/artist/${encodeURIComponent(o.key)}`}>
+                    <span className="trk__title">{o.name}</span>
+                    <span className="note">
+                      {nf(o.peak)} des {nf(o.total)} écoutes dès le {o.peakStart}
+                    </span>
+                  </Link>
+                  <span className="rank__val">{Math.round(o.concentration * 100)} %</span>
+                </li>
+              ))}
+            </ol>
+          </Reveal>
+        )}
+
+        {data.insights?.showSpread && data.insights.loyal.length > 0 && (
+          <Reveal as="section" className="ann">
+            <p className="ann__label">les fidèles — présents mois après mois</p>
+            <ol className="ranks">
+              {data.insights.loyal.map((l) => (
+                <li className="rank" key={l.key} style={{ gridTemplateColumns: "1fr auto" }}>
+                  <Link className="srch__link" href={`/artist/${encodeURIComponent(l.key)}`}>
+                    <span className="trk__title">{l.name}</span>
+                  </Link>
+                  <span className="rank__val">
+                    {l.months} mois · {nf(l.total)}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </Reveal>
+        )}
+
+        {data.insights?.showSpread && data.insights.fleeting.length > 0 && (
+          <Reveal as="section" className="ann">
+            <p className="ann__label">les éphémères — un seul mois, puis plus rien</p>
+            <ol className="ranks">
+              {data.insights.fleeting.map((f) => (
+                <li className="rank" key={f.key} style={{ gridTemplateColumns: "1fr auto" }}>
+                  <Link className="srch__link" href={`/artist/${encodeURIComponent(f.key)}`}>
+                    <span className="trk__title">{f.name}</span>
+                  </Link>
+                  <span className="rank__val">{nf(f.total)}</span>
+                </li>
+              ))}
+            </ol>
+          </Reveal>
+        )}
+
+        {data.insights && data.insights.fresh + data.insights.repeat > 0 && (
+          <Reveal as="section" className="ann">
+            <p className="ann__label">nouveautés vs réécoutes</p>
+            <div className="ratio">
+              <span
+                className="ratio__seg ratio__seg--fresh"
+                style={{
+                  width: `${(data.insights.fresh / (data.insights.fresh + data.insights.repeat)) * 100}%`,
+                }}
+              />
+              <span
+                className="ratio__seg ratio__seg--repeat"
+                style={{
+                  width: `${(data.insights.repeat / (data.insights.fresh + data.insights.repeat)) * 100}%`,
+                }}
+              />
+            </div>
+            <p className="prose" style={{ marginTop: "0.9rem" }}>
+              <span className="mono">{nf(data.insights.fresh)}</span> découvertes de
+              titres, <span className="mono">{nf(data.insights.repeat)}</span>{" "}
+              réécoutes —{" "}
+              {Math.round(
+                (data.insights.fresh / (data.insights.fresh + data.insights.repeat)) * 100,
+              )}{" "}
+              % de neuf.
+            </p>
           </Reveal>
         )}
 

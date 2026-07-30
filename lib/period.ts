@@ -31,6 +31,23 @@ export type PeriodData = {
   streak: number;
   /** écoutes par artiste sur la période précédente (clé = lower(artist)) → comparaison */
   prevArtist: Record<string, number>;
+  /**
+   * Stats avancées — absentes en mode fixtures.
+   * `obsessions` n'a de sens que sur une plage nettement plus longue que la
+   * fenêtre de 7 jours, et `loyal`/`fleeting` que sur plusieurs mois : sur une
+   * page « mois », tout artiste est trivialement présent sur un seul mois.
+   */
+  insights: {
+    obsessions: import("./insights").Obsession[];
+    loyal: import("./insights").Spread[];
+    fleeting: import("./insights").Spread[];
+    fresh: number;
+    repeat: number;
+    /** plage assez longue pour que les obsessions soient parlantes */
+    showObsessions: boolean;
+    /** plage couvrant plusieurs mois → fidèles / éphémères pertinents */
+    showSpread: boolean;
+  } | null;
   source: "fixtures" | "db";
 };
 
@@ -52,22 +69,38 @@ export async function getPeriodData(
       label,
       streak: longestStreak(f.perDay),
       prevArtist: Object.fromEntries(p.topArtists.map((a) => [a.key, a.count])),
+      insights: null,
       source: "fixtures",
     };
   }
 
   const s = await import("./stats");
-  const [summary, perDay, perHour, topArtists, topAlbums, topTracks, discoveries, prevTop] =
-    await Promise.all([
-      s.summary(account, range),
-      s.perDay(account, range),
-      s.perHour(account, range),
-      s.topArtists(account, range, 10),
-      s.topAlbums(account, range, 8),
-      s.topTracks(account, range, 10),
-      s.discoveries(account, range, 12),
-      s.topArtists(account, prev, 500),
-    ]);
+  const ins = await import("./insights");
+  const [
+    summary,
+    perDay,
+    perHour,
+    topArtists,
+    topAlbums,
+    topTracks,
+    discoveries,
+    prevTop,
+    obs,
+    spread,
+    fr,
+  ] = await Promise.all([
+    s.summary(account, range),
+    s.perDay(account, range),
+    s.perHour(account, range),
+    s.topArtists(account, range, 10),
+    s.topAlbums(account, range, 8),
+    s.topTracks(account, range, 10),
+    s.discoveries(account, range, 12),
+    s.topArtists(account, prev, 500),
+    ins.obsessions(account, range, 5),
+    ins.loyalAndFleeting(account, range, 5),
+    ins.freshVsRepeat(account, range),
+  ]);
 
   return {
     range,
@@ -83,6 +116,15 @@ export async function getPeriodData(
     topTrack: topTracks[0] ?? null,
     streak: longestStreak(perDay),
     prevArtist: Object.fromEntries(prevTop.map((a) => [a.key, a.count])),
+    insights: {
+      obsessions: obs,
+      loyal: spread.loyal,
+      fleeting: spread.fleeting,
+      fresh: fr.fresh,
+      repeat: fr.repeat,
+      showObsessions: rangeDays(range) >= 21,
+      showSpread: spread.monthsInRange >= 3,
+    },
     source: "db",
   };
 }
@@ -100,6 +142,13 @@ export async function getDayData(account: string | null, date: string): Promise<
     timeline = await s.scrobblesInRange(account, base.range, 500);
   }
   return { ...base, timeline };
+}
+
+/** Longueur d'une plage en jours. */
+function rangeDays(r: Range): number {
+  return Math.round(
+    (Date.parse(r.end + "T12:00:00Z") - Date.parse(r.start + "T12:00:00Z")) / 86_400_000,
+  );
 }
 
 function nextDayStr(iso: string): string {

@@ -31,7 +31,23 @@ export async function GET(req: Request) {
         results.push({ account, error: e instanceof Error ? e.message : String(e) });
       }
     }
-    return NextResponse.json({ ok: true, synced: results.length, results });
+    // Temps restant → on résout quelques durées/photos manquantes. Sans ça,
+    // les nouveaux titres garderaient l'estimation à 3 min 30 indéfiniment.
+    let enriched: unknown = null;
+    if (Date.now() - started < 40_000) {
+      try {
+        const { enrichChunk } = await import("@/lib/enrich");
+        enriched = await enrichChunk({
+          tracks: 25,
+          artists: 10,
+          budgetMs: Math.max(3_000, 45_000 - (Date.now() - started)),
+        });
+      } catch (e) {
+        enriched = { error: e instanceof Error ? e.message : String(e) };
+      }
+    }
+
+    return NextResponse.json({ ok: true, synced: results.length, results, enriched });
   } catch (e) {
     return NextResponse.json(
       { ok: false, error: e instanceof Error ? e.message : String(e) },

@@ -160,6 +160,8 @@ export function buildRange(start: string, end: string): BuiltPeriod {
     artists: Math.min(ARTISTS.length * 10, Math.max(1, Math.round(scrobbles / 12))),
     tracks: Math.max(1, Math.round(scrobbles / 2.2)),
     estMs: scrobbles * FALLBACK_TRACK_MS,
+    // en fixtures, aucune durée réelle : le « ~ » reste affiché
+    durationsKnown: 0,
   };
 
   return {

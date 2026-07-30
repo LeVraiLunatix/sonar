@@ -28,6 +28,8 @@ export type Summary = {
   artists: number;
   tracks: number;
   estMs: number;
+  /** scrobbles dont la durée réelle est connue (table `tracks`) */
+  durationsKnown: number;
 };
 
 /** Fragment WHERE réutilisable : le compte, et played_at dans la plage. */
@@ -38,13 +40,14 @@ const scope = (account: string, r: Range) =>
 
 export async function summary(account: string, r: Range): Promise<Summary> {
   const [row] = await sql<
-    { scrobbles: number; artists: number; tracks: number; ms: number }[]
+    { scrobbles: number; artists: number; tracks: number; ms: number; known: number }[]
   >`
     select
       count(*)::int                                   as scrobbles,
       count(distinct lower(artist))::int              as artists,
       count(distinct (lower(artist) || '␟' || lower(track)))::int as tracks,
-      coalesce(sum(coalesce(t.duration_ms, ${FALLBACK_TRACK_MS})), 0)::bigint as ms
+      coalesce(sum(coalesce(t.duration_ms, ${FALLBACK_TRACK_MS})), 0)::bigint as ms,
+      count(t.duration_ms)::int                       as known
     from scrobbles s
     left join tracks t
       on t.artist_key = lower(s.artist) and t.track_key = lower(s.track)
@@ -57,6 +60,7 @@ export async function summary(account: string, r: Range): Promise<Summary> {
     artists: row?.artists ?? 0,
     tracks: row?.tracks ?? 0,
     estMs: Number(row?.ms ?? 0),
+    durationsKnown: row?.known ?? 0,
   };
 }
 

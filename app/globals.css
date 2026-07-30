@@ -1362,6 +1362,110 @@ a {
   }
 }
 
+/* ── page artiste ── */
+.art-head {
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(1rem, 2.5vw, 1.75rem);
+  flex-wrap: wrap;
+}
+.art-head__photo {
+  width: clamp(84px, 12vw, 112px);
+  height: clamp(84px, 12vw, 112px);
+  object-fit: cover;
+  flex: none;
+  /* léger filtre d'encre : la photo entre dans la palette du site */
+  filter: grayscale(1) contrast(1.08);
+  mix-blend-mode: multiply;
+}
+:root[data-theme="dark"] .art-head__photo {
+  mix-blend-mode: screen;
+  filter: grayscale(1) contrast(0.95) brightness(0.9);
+}
+.art-head__name {
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.3rem, 3.2vw, 2rem);
+  line-height: 1.05;
+}
+
+/* courbe de vie d'un artiste */
+.spark {
+  width: 100%;
+  height: clamp(70px, 12vh, 120px);
+  isolation: var(--ink-isolate);
+}
+.spark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* liens dans les classements */
+.rank__link,
+.srch__link {
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+.rank__link:hover .trk__title,
+.srch__link:hover .trk__title {
+  color: var(--blue);
+}
+.srch__link {
+  display: grid;
+  gap: 0.15rem;
+}
+
+/* ── recherche ── */
+.srch {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.srch__input {
+  flex: 1 1 16rem;
+  min-width: 0;
+  font-size: 1.05rem;
+  padding: 0.6em 0.7em;
+  background: transparent;
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+}
+.srch__go {
+  font-family: var(--font-data);
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.6em 1em;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  cursor: pointer;
+}
+.srch__go:hover {
+  background: var(--blue);
+}
+
+/* ── ratio nouveautés / réécoutes : deux encres bout à bout ── */
+.ratio {
+  display: flex;
+  height: 1.5rem;
+  isolation: var(--ink-isolate);
+  overflow: hidden;
+}
+.ratio__seg {
+  height: 100%;
+  mix-blend-mode: multiply;
+}
+.ratio__seg--fresh {
+  background: var(--pink);
+}
+.ratio__seg--repeat {
+  background: var(--blue);
+}
+
 /* ── page de connexion ── */
 .login {
   min-height: 100svh;

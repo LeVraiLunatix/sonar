@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ArtistCount } from "@/lib/stats";
 import { nf } from "@/lib/format";
 
@@ -29,7 +30,9 @@ export default function CompareRanks({
         return (
           <li className="rank" key={a.key}>
             <span className="rank__n mono">{String(i + 1).padStart(2, "0")}</span>
-            <span className="rank__name">{a.name}</span>
+            <Link className="rank__name rank__link" href={`/artist/${encodeURIComponent(a.key)}`}>
+              {a.name}
+            </Link>
             <div className="rank__bar">
               <span className="rank__seg rank__seg--now" style={{ width: `${now}%` }} />
               <span className="rank__seg rank__seg--prev" style={{ width: `${before}%` }} />
