@@ -14,8 +14,8 @@ import TopBar from "@/components/TopBar";
 import AmplitudeStrip from "@/components/AmplitudeStrip";
 import LiveRecent from "@/components/LiveRecent";
 import LiveToday from "@/components/LiveToday";
+import LivePeriodCount from "@/components/LivePeriodCount";
 import Reveal from "@/components/Reveal";
-import BigCount from "@/components/BigCount";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +33,10 @@ export default async function Home() {
   });
 
   const tiles = [
-    // `live` : la valeur du jour est remplacée par celle lue chez Last.fm
-    { href: `/day/${today}`, label: "aujourd’hui", v: data.today.summary.scrobbles, live: true },
-    { href: `/week/${wy}/${week}`, label: "cette semaine", v: data.week.summary.scrobbles },
-    { href: `/month/${y}/${m}`, label: "ce mois-ci", v: data.month.summary.scrobbles },
+    // Les valeurs contenant aujourd'hui sont réconciliées avec Last.fm côté client.
+    { href: `/day/${today}`, label: "aujourd’hui", v: data.today.summary.scrobbles, live: "today" },
+    { href: `/week/${wy}/${week}`, label: "cette semaine", v: data.week.summary.scrobbles, live: "period" },
+    { href: `/month/${y}/${m}`, label: "ce mois-ci", v: data.month.summary.scrobbles, live: "period" },
   ];
 
   const now = new Date().getFullYear();
@@ -51,7 +51,11 @@ export default async function Home() {
             ce mois-ci
             {data.source === "fixtures" ? " · données fictives" : ""}
           </p>
-          <BigCount value={data.month.summary.scrobbles} />
+          <LivePeriodCount
+            initial={data.month.summary.scrobbles}
+            todayInitial={data.today.summary.scrobbles}
+            big
+          />
           <p className="prose" style={{ marginTop: "0.75rem" }}>
             <span className="big__unit">scrobbles</span> ce mois-ci. Ci-dessous, les 90 derniers jours.
           </p>
@@ -68,7 +72,14 @@ export default async function Home() {
               <li key={t.href}>
                 <Link href={t.href} className="tile">
                   <span className="tile__v mono">
-                    {t.live ? <LiveToday initial={t.v} /> : nf(t.v)}
+                    {t.live === "today" ? (
+                      <LiveToday initial={t.v} />
+                    ) : (
+                      <LivePeriodCount
+                        initial={t.v}
+                        todayInitial={data.today.summary.scrobbles}
+                      />
+                    )}
                   </span>
                   <span className="tile__k">{t.label}</span>
                 </Link>

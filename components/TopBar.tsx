@@ -1,6 +1,6 @@
 import Link from "next/link";
-import ThemeToggle from "./ThemeToggle";
 import Logo from "./Logo";
+import TopBarMenu from "./TopBarMenu";
 import { parisToday, isoWeekOf } from "@/lib/dates";
 import { currentUser } from "@/lib/session";
 
@@ -16,6 +16,7 @@ export default async function TopBar({ current }: { current?: string }) {
     { href: `/week/${wy}/${week}`, label: "cette semaine", key: "week" },
     { href: `/month/${y}/${m}`, label: "ce mois", key: "month" },
     { href: `/year/${y}`, label: "année", key: "year" },
+    { href: "/all", label: "depuis toujours", key: "all" },
     { href: `/compare`, label: "comparer", key: "compare" },
     { href: `/search`, label: "chercher", key: "search" },
   ];
@@ -25,29 +26,7 @@ export default async function TopBar({ current }: { current?: string }) {
       <Link className="brand" href="/" aria-label="Sonar — accueil">
         <Logo />
       </Link>
-      <div className="top__right">
-        <nav className="nav" aria-label="Périodes">
-          {links.map((l) => (
-            <Link
-              key={l.key}
-              href={l.href}
-              className={current === l.key ? "now" : undefined}
-              aria-current={current === l.key ? "page" : undefined}
-            >
-              {l.label}
-            </Link>
-          ))}
-        </nav>
-        {user && (
-          <form className="whoami" method="post" action="/api/auth/logout">
-            <span className="whoami__name mono">{user}</span>
-            <button className="whoami__out mono" type="submit">
-              sortir
-            </button>
-          </form>
-        )}
-        <ThemeToggle />
-      </div>
+      <TopBarMenu links={links} current={current} user={user} />
     </div>
   );
 }

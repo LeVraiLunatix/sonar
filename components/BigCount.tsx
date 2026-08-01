@@ -24,11 +24,18 @@ export default function BigCount({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // Une valeur peut être réconciliée en direct après le premier rendu.
+    // L'animation d'entrée ne se rejoue pas, mais le chiffre doit se mettre à jour.
+    if (started.current) {
+      setN(value);
+      return;
+    }
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setN(value);
       return;
     }
 
+    let frame = 0;
     const io = new IntersectionObserver((entries) => {
       for (const e of entries) {
         if (!e.isIntersecting || started.current) continue;
@@ -40,14 +47,17 @@ export default function BigCount({
           const p = Math.min(1, (t - t0) / duration);
           const eased = 1 - Math.pow(1 - p, 3);
           setN(Math.round(value * eased));
-          if (p < 1) requestAnimationFrame(tick);
+          if (p < 1) frame = requestAnimationFrame(tick);
         };
         setN(0);
-        requestAnimationFrame(tick);
+        frame = requestAnimationFrame(tick);
       }
     });
     io.observe(el);
-    return () => io.disconnect();
+    return () => {
+      io.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, [value, duration]);
 
   const text = nf(n) + suffix;

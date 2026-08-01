@@ -9,6 +9,6 @@ import { useLive } from "@/lib/useLive";
  */
 export default function LiveToday({ initial }: { initial: number }) {
   const live = useLive();
-  const value = typeof live?.todayCount === "number" ? live.todayCount : initial;
+  const value = typeof live?.todayCount === "number" ? Math.max(initial, live.todayCount) : initial;
   return <>{nf(value)}</>;
 }
