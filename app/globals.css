@@ -629,6 +629,33 @@ a {
   gap: 1rem 2rem;
   margin-bottom: clamp(2rem, 6vh, 4rem);
 }
+
+/* Variante statique du compteur : deux passages d’encre, sans animation. */
+.inkvalue {
+  position: relative;
+  isolation: isolate;
+  display: inline-grid;
+  vertical-align: baseline;
+}
+.inkvalue__ink,
+.inkvalue__ghost {
+  grid-area: 1 / 1;
+  display: block;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  white-space: nowrap;
+}
+.inkvalue__ink {
+  position: relative;
+  color: var(--ink);
+}
+.inkvalue__ghost {
+  color: var(--pink);
+  transform: translate(0.05em, 0.06em);
+  mix-blend-mode: multiply;
+  z-index: -1;
+}
 .brand {
   display: inline-flex;
   align-items: center;
@@ -2041,7 +2068,16 @@ a {
   line-height: 0.92;
 }
 .exp-section > h2 em { font-family: var(--font-text), serif; font-size: 0.52em; font-weight: 400; }
-.exp-section > .exp-title--giant { font-size: clamp(3rem, 9vw, 8rem); letter-spacing: 0.015em; }
+.exp-section > .exp-title--giant {
+  width: 100%;
+  max-width: 100%;
+  font-size: clamp(2.6rem, 7vw, 5rem);
+  letter-spacing: 0.015em;
+  overflow-wrap: anywhere;
+}
+.ann--wide.exp-section > .exp-title--giant {
+  font-size: clamp(3rem, 9vw, 8rem);
+}
 .exp-section h3 {
   margin: 0 0 0.9rem;
   font-family: var(--font-data);
@@ -2074,7 +2110,7 @@ a {
   color: var(--data-accent);
   overflow-wrap: anywhere;
 }
-.exp-metrics span { font-family: var(--font-display), sans-serif; font-size: 0.95rem; font-weight: 700; }
+.exp-metrics > div > span:not(.inkvalue) { font-family: var(--font-display), sans-serif; font-size: 0.95rem; font-weight: 700; }
 .exp-metrics small {
   max-width: 23ch;
   font-family: var(--font-data);
@@ -2135,7 +2171,7 @@ a {
   line-height: 0.76;
   color: var(--data-accent);
 }
-.wrap-lead span { font-family: var(--font-display), sans-serif; font-size: clamp(1.3rem, 3vw, 2.3rem); font-weight: 800; }
+.wrap-lead > span { font-family: var(--font-display), sans-serif; font-size: clamp(1.3rem, 3vw, 2.3rem); font-weight: 800; }
 .wrap-lead small, .wrap-note { margin-top: 0.55rem; font-family: var(--font-data); font-size: 0.62rem; letter-spacing: 0.06em; color: var(--gray); }
 .exp-metrics--wrap strong { font-size: clamp(1.4rem, 3.4vw, 3rem); }
 .pick { display: grid; gap: 1.25rem; }
@@ -2195,7 +2231,7 @@ a {
   line-height: 0.8;
   color: var(--data-accent);
 }
-.match-score span { font-family: var(--font-display), sans-serif; font-size: clamp(1.1rem, 2.5vw, 1.8rem); font-weight: 800; }
+.match-score > span { font-family: var(--font-display), sans-serif; font-size: clamp(1.1rem, 2.5vw, 1.8rem); font-weight: 800; }
 .match-list { list-style: none; margin: 0; padding: 0; }
 .match-list li { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--rule); }
 .match-list strong { overflow: hidden; font-family: var(--font-display), sans-serif; font-size: 0.9rem; text-overflow: ellipsis; white-space: nowrap; }
