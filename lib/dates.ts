@@ -94,10 +94,12 @@ export function prevRangeOf(r: Range, kind: PeriodKind): Range {
       const y = Number(r.start.slice(0, 4));
       return yearRange(y - 1);
     }
+    case "all":
+      return r;
   }
 }
 
-export type PeriodKind = "day" | "week" | "month" | "year";
+export type PeriodKind = "day" | "week" | "month" | "year" | "all";
 
 // ── Libellés ──
 export function periodLabel(r: Range, kind: PeriodKind): string {
@@ -114,5 +116,7 @@ export function periodLabel(r: Range, kind: PeriodKind): string {
     }
     case "year":
       return r.start.slice(0, 4);
+    case "all":
+      return "depuis toujours";
   }
 }

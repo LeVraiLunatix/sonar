@@ -157,7 +157,7 @@ export default async function ArtistPage({
 
         {topAlbums.length > 0 && (
           <Reveal as="section" className="ann ann--wide">
-            <p className="ann__label">albums et singles</p>
+            <p className="ann__label">Albums, Singles et EP</p>
             <div className="shelf">
               {topAlbums.map((al, i) => (
                 <div className="shelf__item" key={al.album + i}>

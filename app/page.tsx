@@ -48,12 +48,12 @@ export default async function Home() {
 
         <Reveal as="section" className="ann">
           <p className="ann__label">
-            depuis toujours{data.lifetime.first ? ` · premier scrobble le ${frDate(data.lifetime.first)}` : ""}
+            ce mois-ci
             {data.source === "fixtures" ? " · données fictives" : ""}
           </p>
-          <BigCount value={data.lifetime.total} />
+          <BigCount value={data.month.summary.scrobbles} />
           <p className="prose" style={{ marginTop: "0.75rem" }}>
-            <span className="big__unit">scrobbles</span> enregistrés. Ci-dessous, les 90 derniers jours.
+            <span className="big__unit">scrobbles</span> ce mois-ci. Ci-dessous, les 90 derniers jours.
           </p>
         </Reveal>
 
@@ -75,6 +75,19 @@ export default async function Home() {
               </li>
             ))}
           </ul>
+        </Reveal>
+
+        <Reveal as="section" className="ann">
+          <p className="ann__label">depuis toujours</p>
+          <Link href="/all" className="tile">
+            <span className="stat__v">{nf(data.lifetime.total)}</span>
+            <span className="stat__k">scrobbles au total · voir toutes les données →</span>
+          </Link>
+          {data.lifetime.first && (
+            <p className="note" style={{ margin: "0.9rem 0 0" }}>
+              premier scrobble le {frDate(data.lifetime.first)}
+            </p>
+          )}
         </Reveal>
 
         <Reveal as="section" className="ann">

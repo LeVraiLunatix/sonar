@@ -57,18 +57,18 @@ export async function getPeriodData(
   kind: PeriodKind,
 ): Promise<PeriodData> {
   const label = periodLabel(range, kind);
-  const prev = prevRangeOf(range, kind);
+  const prev = kind === "all" ? null : prevRangeOf(range, kind);
 
   if (!useDb(account)) {
     const f = buildRange(range.start, range.end);
-    const p = buildRange(prev.start, prev.end);
+    const p = prev ? buildRange(prev.start, prev.end) : null;
     return {
       ...f,
       range,
       kind,
       label,
       streak: longestStreak(f.perDay),
-      prevArtist: Object.fromEntries(p.topArtists.map((a) => [a.key, a.count])),
+      prevArtist: Object.fromEntries((p?.topArtists ?? []).map((a) => [a.key, a.count])),
       insights: null,
       source: "fixtures",
     };
@@ -96,7 +96,7 @@ export async function getPeriodData(
     s.topAlbums(account, range, 8),
     s.topTracks(account, range, 10),
     s.discoveries(account, range, 12),
-    s.topArtists(account, prev, 500),
+    prev ? s.topArtists(account, prev, 500) : Promise.resolve<ArtistCount[]>([]),
     ins.obsessions(account, range, 5),
     ins.loyalAndFleeting(account, range, 5),
     ins.freshVsRepeat(account, range),

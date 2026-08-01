@@ -61,7 +61,7 @@ export default function PeriodView({
         {/* ── en-tête : pleine largeur ── */}
         <Reveal as="section" className="ann ann--head">
           <p className="ann__label">
-            {kind === "year" ? "archive" : kind} · {data.label}
+            {kind === "year" ? "archive" : kind === "all" ? "archive complète" : kind} · {data.label}
             {data.source === "fixtures" ? " · données fictives" : ""}
           </p>
           <BigCount value={summary.scrobbles} />
@@ -90,12 +90,16 @@ export default function PeriodView({
 
         {topArtists.length > 0 && (
           <Reveal as="section" className="ann">
-            <p className="ann__label">artistes — vs période précédente</p>
-            <CompareRanks artists={topArtists} prev={data.prevArtist} />
-            <p className="note" style={{ marginTop: "1rem" }}>
-              barre rose : cette période. trait bleu : la précédente. le violet est
-              leur recouvrement.
+            <p className="ann__label">
+              {kind === "all" ? "artistes les plus écoutés" : "artistes — vs période précédente"}
             </p>
+            <CompareRanks artists={topArtists} prev={data.prevArtist} />
+            {kind !== "all" && (
+              <p className="note" style={{ marginTop: "1rem" }}>
+                barre rose : cette période. trait bleu : la précédente. le violet est
+                leur recouvrement.
+              </p>
+            )}
           </Reveal>
         )}
 
@@ -130,7 +134,7 @@ export default function PeriodView({
 
         {topAlbums.length > 0 && (
           <Reveal as="section" className="ann">
-            <p className="ann__label">albums les plus écoutés</p>
+            <p className="ann__label">Albums, Singles et EP les plus écoutés</p>
             <ol className="ranks">
               {topAlbums.slice(0, 6).map((a, i) => (
                 <li
@@ -152,7 +156,9 @@ export default function PeriodView({
 
         {discoveries.length > 0 && (
           <Reveal as="section" className="ann">
-            <p className="ann__label">découvertes — premier scrobble dans la période</p>
+            <p className="ann__label">
+              {kind === "all" ? "découvertes depuis le début" : "découvertes — premier scrobble dans la période"}
+            </p>
             <ul className="ranks">
               {discoveries.slice(0, 8).map((d) => (
                 <li className="rank" key={d.key} style={{ gridTemplateColumns: "1fr auto" }}>
