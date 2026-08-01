@@ -522,12 +522,13 @@ a {
   font-variant-numeric: tabular-nums;
 }
 .cmp-side--a .cmp-side__n {
-  color: var(--pink);
-  mix-blend-mode: multiply;
+  color: var(--ink);
 }
 .cmp-side--b .cmp-side__n {
+  color: var(--ink);
+}
+.cmp-side--b .cmp-side__n .inkvalue__ghost {
   color: var(--blue);
-  mix-blend-mode: multiply;
 }
 .cmp-side__k {
   font-family: var(--font-data);

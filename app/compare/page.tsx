@@ -4,6 +4,7 @@ import { accountForPage } from "@/lib/guard";
 import { frMonth, nf } from "@/lib/format";
 import TopBar from "@/components/TopBar";
 import ComparePanel from "@/components/ComparePanel";
+import InkValue from "@/components/InkValue";
 
 export const dynamic = "force-dynamic";
 
@@ -54,12 +55,12 @@ export default async function ComparePage({
           <p className="ann__label">comparer deux mois</p>
           <div className="cmp-head">
             <div className="cmp-side cmp-side--a">
-              <span className="cmp-side__n">{nf(data.a.scrobbles)}</span>
+              <InkValue as="span" className="cmp-side__n">{nf(data.a.scrobbles)}</InkValue>
               <span className="cmp-side__k">{data.a.label}</span>
             </div>
             <span className="cmp-head__vs">vs</span>
             <div className="cmp-side cmp-side--b">
-              <span className="cmp-side__n">{nf(data.b.scrobbles)}</span>
+              <InkValue as="span" className="cmp-side__n">{nf(data.b.scrobbles)}</InkValue>
               <span className="cmp-side__k">{data.b.label}</span>
             </div>
           </div>
