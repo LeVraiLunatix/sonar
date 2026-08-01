@@ -18,6 +18,7 @@ export default async function TopBar({ current }: { current?: string }) {
     { href: `/year/${y}`, label: "année", key: "year" },
     { href: "/all", label: "depuis toujours", key: "all" },
     { href: "/recommendations", label: "recommandations", key: "recommendations" },
+    { href: "/explorer", label: "explorer", key: "explorer" },
     { href: `/compare`, label: "comparer", key: "compare" },
     { href: `/search`, label: "chercher", key: "search" },
   ];

@@ -17,6 +17,7 @@ function clean(value: unknown): string | null {
 async function callLastfm<T>(
   method: string,
   params: Record<string, string>,
+  revalidate = LASTFM_CATALOG_TTL,
 ): Promise<T> {
   const apiKey = process.env.LASTFM_API_KEY;
   if (!apiKey) throw new Error("LASTFM_API_KEY manquante");
@@ -30,17 +31,76 @@ async function callLastfm<T>(
   });
   const response = await fetch(`${API}?${query.toString()}`, {
     headers: { "User-Agent": "Sonar/0.1 (personal recommendations)" },
-    next: { revalidate: LASTFM_CATALOG_TTL },
+    next: { revalidate },
   });
-  if (!response.ok) {
-    throw new Error(`Last.fm HTTP ${response.status} ${response.statusText}`);
-  }
-
   const json = (await response.json()) as T & { error?: number; message?: string };
   if (json.error) {
     throw new Error(`Last.fm error ${json.error}: ${json.message ?? "?"}`);
   }
+  if (!response.ok) {
+    throw new Error(`Last.fm HTTP ${response.status} ${response.statusText}`);
+  }
   return json;
+}
+
+export type FriendListen = {
+  friend: string;
+  friendUrl: string;
+  artist: string;
+  track: string;
+  url: string;
+  nowPlaying: boolean;
+};
+
+export async function userFriendListens(username: string): Promise<FriendListen[]> {
+  let json: {
+    friends?: {
+      user?: Array<{
+        name?: string;
+        url?: string;
+        recenttrack?: {
+          name?: string;
+          url?: string;
+          artist?: string | { name?: string; "#text"?: string };
+          "@attr"?: { nowplaying?: string };
+        };
+      }>;
+    };
+  };
+  try {
+    json = await callLastfm(
+      "user.getfriends",
+      { user: username, recenttracks: "1", limit: "50" },
+      15 * 60,
+    );
+  } catch (error) {
+    // Last.fm répond « no such page » lorsqu’un profil n’a aucun ami.
+    if (error instanceof Error && error.message.includes("error 6: no such page")) return [];
+    throw error;
+  }
+
+  return asArray(json.friends?.user)
+    .map((user) => {
+      const recent = user.recenttrack;
+      const artist =
+        typeof recent?.artist === "string"
+          ? recent.artist
+          : clean(recent?.artist?.name) ?? clean(recent?.artist?.["#text"]);
+      const friend = clean(user.name);
+      const track = clean(recent?.name);
+      if (!friend || !artist || !track) return null;
+      return {
+        friend,
+        friendUrl: clean(user.url) ?? `https://www.last.fm/user/${encodeURIComponent(friend)}`,
+        artist,
+        track,
+        url:
+          clean(recent?.url) ??
+          `https://www.last.fm/music/${encodeURIComponent(artist)}/_/${encodeURIComponent(track)}`,
+        nowPlaying: recent?.["@attr"]?.nowplaying === "true",
+      };
+    })
+    .filter((item): item is FriendListen => item !== null);
 }
 
 export type SimilarArtist = {

@@ -12,11 +12,13 @@ export default function Reveal({
   delay = 0,
   as: Tag = "div",
   className = "",
+  id,
 }: {
   children: ReactNode;
   delay?: number;
   as?: "div" | "section" | "li" | "p";
   className?: string;
+  id?: string;
 }) {
   const ref = useRef<HTMLElement>(null);
   const [shown, setShown] = useState(false);
@@ -72,6 +74,7 @@ export default function Reveal({
     <Tag
       // @ts-expect-error — ref polymorphe volontaire
       ref={ref}
+      id={id}
       className={`reveal ${shown ? "is-in" : ""} ${className}`.trim()}
       style={delay ? { transitionDelay: `${delay}ms` } : undefined}
     >
