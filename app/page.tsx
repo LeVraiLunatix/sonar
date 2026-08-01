@@ -56,7 +56,7 @@ export default async function Home() {
             todayInitial={data.today.summary.scrobbles}
             big
           />
-          <p className="prose" style={{ marginTop: "0.75rem" }}>
+          <p className="prose home__monthly-caption" style={{ marginTop: "0.75rem" }}>
             <span className="big__unit">scrobbles</span> ce mois-ci. Ci-dessous, les 90 derniers jours.
           </p>
         </Reveal>
