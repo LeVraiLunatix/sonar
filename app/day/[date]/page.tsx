@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDayData } from "@/lib/period";
-import { prevDay, nextDay, isoWeekOf } from "@/lib/dates";
+import { prevDay, nextDay, isoWeekOf, parisToday } from "@/lib/dates";
 import { accountForPage } from "@/lib/guard";
 import { nf, humanMs, frDate, frTime } from "@/lib/format";
 import TopBar from "@/components/TopBar";
+import BigCount from "@/components/BigCount";
+import LivePeriodCount from "@/components/LivePeriodCount";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -22,6 +24,7 @@ export default async function DayPage({
   const maxHour = Math.max(1, ...perHour.map((h) => h.count));
   const [y, m] = date.split("-").map(Number);
   const { year: wy, week } = isoWeekOf(date);
+  const isToday = date === parisToday();
 
   return (
     <main className="year year--nospine">
@@ -30,10 +33,15 @@ export default async function DayPage({
 
         <section className="ann">
           <p className="ann__label">journée · {frDate(date + "T12:00:00Z")}</p>
-          <span className="big">
-            <span className="big__ghost" aria-hidden="true">{nf(summary.scrobbles)}</span>
-            <span className="big__ink">{nf(summary.scrobbles)}</span>
-          </span>
+          {isToday ? (
+            <LivePeriodCount
+              initial={summary.scrobbles}
+              todayInitial={summary.scrobbles}
+              big
+            />
+          ) : (
+            <BigCount value={summary.scrobbles} />
+          )}
           <p className="prose" style={{ marginTop: "0.75rem" }}>
             <span className="big__unit">scrobbles</span> ce jour-là.
           </p>

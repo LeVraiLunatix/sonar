@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { PeriodData } from "@/lib/period";
+import { parisToday } from "@/lib/dates";
 import { nf, humanMs } from "@/lib/format";
 import AmplitudeSpine from "./AmplitudeSpine";
 import CompareRanks from "./CompareRanks";
@@ -8,6 +9,7 @@ import Clock from "./Clock";
 import TopBar from "./TopBar";
 import Reveal from "./Reveal";
 import BigCount from "./BigCount";
+import LivePeriodCount from "./LivePeriodCount";
 
 /** Petite brique de statistique — une valeur, un intitulé. */
 function Stat({ v, k, delay = 0 }: { v: string; k: string; delay?: number }) {
@@ -50,6 +52,9 @@ export default function PeriodView({
   const withHeat = perDay.length >= 28;
   const activeDays = perDay.filter((d) => d.count > 0).length;
   const peak = perDay.reduce((a, b) => (b.count > a.count ? b : a), perDay[0]);
+  const today = parisToday();
+  const includesToday = data.range.start <= today && data.range.end > today;
+  const todayInitial = perDay.find((day) => day.day === today)?.count ?? 0;
 
   return (
     <main className={withSpine ? "year" : "year year--nospine"}>
@@ -64,7 +69,15 @@ export default function PeriodView({
             {kind === "year" ? "archive" : kind === "all" ? "archive complète" : kind} · {data.label}
             {data.source === "fixtures" ? " · données fictives" : ""}
           </p>
-          <BigCount value={summary.scrobbles} />
+          {includesToday ? (
+            <LivePeriodCount
+              initial={summary.scrobbles}
+              todayInitial={todayInitial}
+              big
+            />
+          ) : (
+            <BigCount value={summary.scrobbles} />
+          )}
           <p className="prose" style={{ marginTop: "0.75rem" }}>
             <span className="big__unit">scrobbles</span>
             {activeDays > 1 ? `, sur ${activeDays} jours d’écoute.` : "."}
