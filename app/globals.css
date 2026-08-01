@@ -1767,6 +1767,245 @@ a {
   line-height: 1.5;
 }
 
+/* ═══════════ recommandations — mêmes filets, chiffres plus hauts que le texte ═══════════ */
+.rec-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: clamp(1.5rem, 4vw, 4rem);
+}
+.rec-head__title {
+  margin: 0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(2.6rem, 8vw, 7rem);
+  font-weight: 800;
+  letter-spacing: -0.055em;
+  line-height: 0.84;
+}
+.rec-head__prose {
+  margin: 1.25rem 0 0;
+  color: var(--gray);
+}
+.rec-head__count {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  min-width: min(28vw, 15rem);
+}
+.rec-window {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.5rem;
+}
+.rec-window a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--rule);
+  color: var(--gray);
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+.rec-window a:hover,
+.rec-window a.is-current {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.rec-window a.is-current {
+  background: var(--ink);
+  color: var(--paper);
+}
+.rec-head__cache {
+  grid-column: 1 / -1;
+  margin: -0.1rem 0 0;
+}
+.rec-signals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+.rec-signal {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  padding: clamp(1rem, 2.2vw, 1.6rem);
+  background: var(--paper);
+}
+.rec-signal__value {
+  font-family: var(--font-data);
+  font-size: clamp(1.7rem, 4vw, 3.5rem);
+  line-height: 0.95;
+  color: var(--data-accent);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.rec-signal__label {
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(0.95rem, 1.4vw, 1.2rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+.rec-signal__detail {
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  line-height: 1.4;
+  letter-spacing: 0.035em;
+  color: var(--gray);
+}
+.rec-group__title {
+  margin: 0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(1.7rem, 3vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+}
+.rec-moment__title {
+  margin: 0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(2rem, 6vw, 5rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.9;
+}
+.rec-moment__note {
+  margin: 0.9rem 0 0;
+  max-width: 54ch;
+}
+.rec-group__intro {
+  margin: 0.8rem 0 1.35rem;
+  max-width: 38ch;
+  line-height: 1.45;
+}
+.rec-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.rec-item {
+  display: grid;
+  grid-template-columns: 1.7rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+  border-top: 1px solid var(--rule);
+}
+.rec-item__rank {
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  color: var(--gray);
+}
+.rec-item__link {
+  min-width: 0;
+  min-height: 58px;
+  display: grid;
+  align-content: center;
+  gap: 0.15rem;
+  padding: 0.65rem 0;
+  text-decoration: none;
+}
+.rec-item__title {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.12;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rec-item__artist {
+  font-family: var(--font-text), serif;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  color: var(--gray);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rec-item__link:hover .rec-item__title {
+  text-decoration: underline;
+  text-decoration-color: var(--blue);
+  text-underline-offset: 0.22em;
+}
+.rec-item__metric {
+  display: grid;
+  justify-items: end;
+  gap: 0.12rem;
+  text-align: right;
+}
+.rec-item__metric strong {
+  font-family: var(--font-data);
+  font-size: clamp(1.05rem, 2vw, 1.45rem);
+  font-weight: 400;
+  line-height: 1;
+  color: var(--data-accent);
+  white-space: nowrap;
+}
+.rec-item__metric small {
+  font-family: var(--font-data);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gray);
+  white-space: nowrap;
+}
+.rec-empty .prose,
+.rec-empty .note {
+  margin: 0;
+}
+@media (max-width: 760px) {
+  .rec-head {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+  .rec-head__count {
+    min-width: 0;
+  }
+  .rec-window,
+  .rec-head__cache {
+    grid-column: 1;
+  }
+  .rec-signals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 420px) {
+  .rec-head__title {
+    font-size: clamp(2rem, 11vw, 2.65rem);
+  }
+  .rec-signals {
+    grid-template-columns: 1fr;
+  }
+  .rec-item {
+    grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+    gap: 0.55rem;
+  }
+  .rec-item__title {
+    font-size: 0.94rem;
+  }
+  .rec-item__artist {
+    font-size: 0.76rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rec-window a {
+    transition: none;
+  }
+}
+
 /* ── mini-lecteur flottant, silhouette façon Apple Music (mobile ET PC) ── */
 .mp {
   position: fixed;
