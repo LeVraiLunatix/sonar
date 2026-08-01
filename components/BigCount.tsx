@@ -19,18 +19,44 @@ export default function BigCount({
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [n, setN] = useState(value);
+  const nRef = useRef(value);
   const started = useRef(false);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // Une valeur peut être réconciliée en direct après le premier rendu.
-    // L'animation d'entrée ne se rejoue pas, mais le chiffre doit se mettre à jour.
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Une valeur peut être réconciliée en direct après le premier rendu, y
+    // compris pendant que le compteur d'entrée est encore en train de monter.
+    // On glisse depuis le chiffre actuellement affiché vers la nouvelle
+    // valeur au lieu de sauter dessus, sinon le compteur semble s'arrêter
+    // en cours de route puis re-sauter plus loin.
     if (started.current) {
-      setN(value);
-      return;
+      if (reduced) {
+        nRef.current = value;
+        setN(value);
+        return;
+      }
+      const from = nRef.current;
+      const delta = value - from;
+      if (delta === 0) return;
+
+      let frame = 0;
+      const t0 = performance.now();
+      const tick = (t: number) => {
+        const p = Math.min(1, (t - t0) / duration);
+        const eased = 1 - Math.pow(1 - p, 3);
+        const next = Math.round(from + delta * eased);
+        nRef.current = next;
+        setN(next);
+        if (p < 1) frame = requestAnimationFrame(tick);
+      };
+      frame = requestAnimationFrame(tick);
+      return () => cancelAnimationFrame(frame);
     }
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (reduced) {
+      nRef.current = value;
       setN(value);
       return;
     }
@@ -46,9 +72,12 @@ export default function BigCount({
         const tick = (t: number) => {
           const p = Math.min(1, (t - t0) / duration);
           const eased = 1 - Math.pow(1 - p, 3);
-          setN(Math.round(value * eased));
+          const next = Math.round(value * eased);
+          nRef.current = next;
+          setN(next);
           if (p < 1) frame = requestAnimationFrame(tick);
         };
+        nRef.current = 0;
         setN(0);
         frame = requestAnimationFrame(tick);
       }
