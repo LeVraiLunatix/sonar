@@ -324,6 +324,11 @@ a {
     flex-wrap: wrap;
     gap: clamp(2rem, 5vh, 3rem) 1.25rem;
   }
+  /* Le gap du flow suffit : la marge de la barre créait un grand vide en plus
+     avant le premier contenu, particulièrement visible sur téléphone. */
+  .topbar {
+    margin-bottom: 0;
+  }
   .flow > * {
     flex: 1 1 100%;
     min-width: 0;
@@ -939,6 +944,9 @@ a {
 }
 
 @media (max-width: 640px) {
+  .flow {
+    row-gap: 2rem;
+  }
   .spine {
     width: 52px;
   }
@@ -1378,11 +1386,7 @@ a {
   }
 }
 
-/* ═══════════ page artiste — bandeau plein cadre ═══════════
-   La photo est traitée en DUOTONE : passée en niveaux de gris, puis un aplat
-   bleu en multiply (les ombres virent au bleu) et un aplat rose en screen (les
-   hautes lumières virent au rose). La photo entre ainsi dans les deux encres
-   du site au lieu d'y être collée telle quelle. */
+/* ═══════════ page artiste — bandeau plein cadre ═══════════ */
 .art-hero {
   position: relative;
   isolation: isolate;
@@ -1403,21 +1407,6 @@ a {
   height: 100%;
   object-fit: cover;
   object-position: center 28%;
-  filter: grayscale(1) contrast(1.12);
-}
-.art-hero__ink {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.art-hero__ink--blue {
-  background: var(--blue);
-  mix-blend-mode: multiply;
-}
-.art-hero__ink--pink {
-  background: var(--pink);
-  mix-blend-mode: screen;
-  opacity: 0.55;
 }
 /* voile pour que le nom reste lisible quelle que soit la photo */
 .art-hero__scrim {

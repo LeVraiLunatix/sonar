@@ -142,7 +142,7 @@ export default async function PublicProfilePage({
 
         {summary.scrobbles > 0 && (
           <Reveal as="section" className="ann">
-            <p className="ann__label">à quelle heure il écoute</p>
+            <p className="ann__label">à quelle heure cette personne écoute</p>
             <Clock hours={perHour} />
           </Reveal>
         )}

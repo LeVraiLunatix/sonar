@@ -62,9 +62,6 @@ export default async function ArtistPage({
               // eslint-disable-next-line @next/next/no-img-element
               <img className="art-hero__img" src={profile.image} alt="" />
             )}
-            {/* duotone : ombres bleues, hautes lumières roses */}
-            <span className="art-hero__ink art-hero__ink--blue" aria-hidden="true" />
-            <span className="art-hero__ink art-hero__ink--pink" aria-hidden="true" />
             <span className="art-hero__scrim" aria-hidden="true" />
             <div className="art-hero__text">
               <p className="ann__label" style={{ margin: 0 }}>
@@ -74,7 +71,7 @@ export default async function ArtistPage({
               <h1 className="art-hero__name">{profile.name}</h1>
               <p className="art-hero__meta">
                 {nf(profile.scrobbles)} écoutes · {nf(profile.tracks)} titres
-                {profile.albums > 0 ? ` · ${nf(profile.albums)} albums` : ""}
+                {profile.releases > 0 ? ` · ${nf(profile.releases)} sorties` : ""}
               </p>
             </div>
           </div>
@@ -160,7 +157,7 @@ export default async function ArtistPage({
 
         {topAlbums.length > 0 && (
           <Reveal as="section" className="ann ann--wide">
-            <p className="ann__label">albums</p>
+            <p className="ann__label">albums et singles</p>
             <div className="shelf">
               {topAlbums.map((al, i) => (
                 <div className="shelf__item" key={al.album + i}>

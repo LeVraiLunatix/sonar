@@ -14,7 +14,8 @@ export type ArtistProfile = {
   name: string;
   scrobbles: number;
   tracks: number;
-  albums: number;
+  /** Sorties Last.fm distinctes : albums, EP et singles. */
+  releases: number;
   first: string | null;
   last: string | null;
   estMs: number;
@@ -37,7 +38,7 @@ export async function artistProfile(
       name: string;
       scrobbles: number;
       tracks: number;
-      albums: number;
+      releases: number;
       first: Date | null;
       last: Date | null;
       ms: number;
@@ -51,7 +52,7 @@ export async function artistProfile(
       count(distinct lower(s.track))::int                            as tracks,
       count(distinct lower(s.album)) filter (
         where s.album is not null and s.album <> ''
-      )::int                                                         as albums,
+      )::int                                                         as releases,
       min(s.played_at)                                               as first,
       max(s.played_at)                                               as last,
       coalesce(sum(coalesce(t.duration_ms, ${FALLBACK_TRACK_MS})), 0)::bigint as ms,
@@ -84,7 +85,7 @@ export async function artistProfile(
     name: row.name,
     scrobbles: row.scrobbles,
     tracks: row.tracks,
-    albums: row.albums,
+    releases: row.releases,
     first: row.first ? new Date(row.first).toISOString() : null,
     last: row.last ? new Date(row.last).toISOString() : null,
     estMs: Number(row.ms),
