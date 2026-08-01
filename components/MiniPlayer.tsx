@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useState } from "react";
 import { timeAgo } from "@/lib/format";
 import { parisToday } from "@/lib/dates";
-import { useLive, setLovedOptimistic, refreshLive } from "@/lib/useLive";
+import {
+  useLive,
+  setLovedOptimistic,
+  rollbackLovedOptimistic,
+  refreshLive,
+} from "@/lib/useLive";
 
 /** Page Last.fm d'un titre (pas d'URL dans la réponse : on la reconstruit). */
 function lastfmUrl(artist: string, track: string) {
@@ -52,7 +57,7 @@ export default function MiniPlayer() {
       if (res.ok) {
         refreshLive();
       } else {
-        setLovedOptimistic(!next); // échec → on remet l'état d'avant
+        rollbackLovedOptimistic(!next); // échec → on remet l'état d'avant
         // 409 : session ouverte avant que Sonar ne conserve la clé d'écriture
         setNotice(
           res.status === 409
@@ -62,7 +67,7 @@ export default function MiniPlayer() {
         setTimeout(() => setNotice(null), 5000);
       }
     } catch {
-      setLovedOptimistic(!next);
+      rollbackLovedOptimistic(!next);
       setNotice("connexion interrompue");
       setTimeout(() => setNotice(null), 5000);
     } finally {
