@@ -4,6 +4,8 @@ import { accountForPage } from "@/lib/guard";
 import { nf, frDate } from "@/lib/format";
 import TopBar from "@/components/TopBar";
 import Reveal from "@/components/Reveal";
+import VisibilityToggle from "@/components/VisibilityToggle";
+import { currentUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Chercher" };
 export const dynamic = "force-dynamic";
@@ -19,15 +21,32 @@ export default async function SearchPage({
 
   let artists: Awaited<ReturnType<typeof import("@/lib/insights").searchArchive>>["artists"] = [];
   let tracks: Awaited<ReturnType<typeof import("@/lib/insights").searchArchive>>["tracks"] = [];
+  let people: { username: string; scrobbles: number }[] = [];
 
   if (account && query.length >= 2 && process.env.DATABASE_URL) {
-    const { searchArchive } = await import("@/lib/insights");
-    const res = await searchArchive(account, query, 12);
+    const [{ searchArchive }, { searchAccounts }] = await Promise.all([
+      import("@/lib/insights"),
+      import("@/lib/accounts"),
+    ]);
+    const [res, accs] = await Promise.all([
+      searchArchive(account, query, 12),
+      searchAccounts(query, account, 6),
+    ]);
     artists = res.artists;
     tracks = res.tracks;
+    people = accs;
   }
 
-  const rien = query.length >= 2 && artists.length === 0 && tracks.length === 0;
+  const rien =
+    query.length >= 2 && artists.length === 0 && tracks.length === 0 && people.length === 0;
+
+  // réglage de visibilité : seulement pour une vraie session
+  const me = await currentUser();
+  let visible = true;
+  if (me && process.env.DATABASE_URL) {
+    const { isProfilePublic } = await import("@/lib/accounts");
+    visible = await isProfilePublic(me);
+  }
 
   return (
     <main className="year year--nospine">
@@ -51,9 +70,16 @@ export default async function SearchPage({
             </button>
           </form>
           <p className="note" style={{ marginTop: "0.75rem" }}>
-            Quand l’as-tu écouté pour la première fois ? Et la dernière ?
+            Un artiste, un titre — ou le pseudo d’un autre compte du site.
           </p>
         </Reveal>
+
+        {me && (
+          <Reveal as="section" className="ann">
+            <p className="ann__label">ta visibilité</p>
+            <VisibilityToggle initial={visible} />
+          </Reveal>
+        )}
 
         {rien && (
           <Reveal as="section" className="ann ann--wide">
@@ -61,6 +87,23 @@ export default async function SearchPage({
               Rien pour « {query} » dans ton archive. Un autre orthographe, ou un
               morceau de nom suffit.
             </p>
+          </Reveal>
+        )}
+
+        {people.length > 0 && (
+          <Reveal as="section" className="ann">
+            <p className="ann__label">comptes du site</p>
+            <ul className="ranks">
+              {people.map((p) => (
+                <li className="rank" key={p.username} style={{ gridTemplateColumns: "1fr auto" }}>
+                  <Link className="srch__link" href={`/u/${encodeURIComponent(p.username)}`}>
+                    <span className="trk__title">{p.username}</span>
+                    <span className="note">voir ses stats</span>
+                  </Link>
+                  <span className="rank__val">{nf(p.scrobbles)} écoutes</span>
+                </li>
+              ))}
+            </ul>
           </Reveal>
         )}
 

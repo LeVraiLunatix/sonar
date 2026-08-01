@@ -82,6 +82,52 @@ export async function getSessionKey(username: string): Promise<string | null> {
   return row?.lastfm_session_key ?? null;
 }
 
+/** Comptes consultables dont le pseudo correspond à la recherche. */
+export async function searchAccounts(
+  q: string,
+  exclude: string,
+  limit = 6,
+): Promise<{ username: string; scrobbles: number }[]> {
+  return sql<{ username: string; scrobbles: number }[]>`
+    select a.username,
+           (select count(*) from scrobbles s where s.account = a.username)::int as scrobbles
+    from accounts a
+    where a.public_profile
+      and a.backfill_status = 'done'
+      and a.username_key <> ${exclude.toLowerCase()}
+      and a.username_key like ${`%${q.trim().toLowerCase()}%`}
+    order by scrobbles desc
+    limit ${limit}
+  `;
+}
+
+/** Un compte est-il consultable par les autres ? Renvoie sa graphie exacte. */
+export async function publicAccount(username: string): Promise<string | null> {
+  const [row] = await sql<{ username: string }[]>`
+    select username from accounts
+    where username_key = ${username.toLowerCase()}
+      and public_profile and backfill_status = 'done'
+  `;
+  return row?.username ?? null;
+}
+
+export async function setProfileVisibility(
+  username: string,
+  isPublic: boolean,
+): Promise<void> {
+  await sql`
+    update accounts set public_profile = ${isPublic}
+    where username_key = ${username.toLowerCase()}
+  `;
+}
+
+export async function isProfilePublic(username: string): Promise<boolean> {
+  const [row] = await sql<{ public_profile: boolean }[]>`
+    select public_profile from accounts where username_key = ${username.toLowerCase()}
+  `;
+  return row?.public_profile ?? true;
+}
+
 export async function markSynced(username: string): Promise<void> {
   await sql`
     update accounts set last_sync_at = now()

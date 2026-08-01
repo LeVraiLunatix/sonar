@@ -56,25 +56,33 @@ export default async function ArtistPage({
       <div className="flow flow--wide">
         <TopBar />
 
-        <Reveal as="section" className="ann ann--head">
-          <p className="ann__label">
-            artiste · {profile.rank}
-            <sup>{profile.rank === 1 ? "er" : "e"}</sup> sur {nf(profile.outOf)}
-          </p>
-          <div className="art-head">
+        <section className="ann ann--head ann--bleed">
+          <div className="art-hero">
             {profile.image && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img className="art-head__photo" src={profile.image} alt="" width={112} height={112} />
+              <img className="art-hero__img" src={profile.image} alt="" />
             )}
-            <div>
-              <h1 className="art-head__name display">{profile.name}</h1>
-              <BigCount value={profile.scrobbles} />
-              <p className="prose" style={{ marginTop: "0.5rem" }}>
-                <span className="big__unit">écoutes</span> · {nf(profile.tracks)} titres
+            {/* duotone : ombres bleues, hautes lumières roses */}
+            <span className="art-hero__ink art-hero__ink--blue" aria-hidden="true" />
+            <span className="art-hero__ink art-hero__ink--pink" aria-hidden="true" />
+            <span className="art-hero__scrim" aria-hidden="true" />
+            <div className="art-hero__text">
+              <p className="ann__label" style={{ margin: 0 }}>
+                {profile.rank}
+                <sup>{profile.rank === 1 ? "er" : "e"}</sup> artiste sur {nf(profile.outOf)}
+              </p>
+              <h1 className="art-hero__name">{profile.name}</h1>
+              <p className="art-hero__meta">
+                {nf(profile.scrobbles)} écoutes · {nf(profile.tracks)} titres
                 {profile.albums > 0 ? ` · ${nf(profile.albums)} albums` : ""}
               </p>
             </div>
           </div>
+        </section>
+
+        <Reveal as="section" className="ann ann--stat">
+          <BigCount value={profile.scrobbles} />
+          <span className="stat__k">écoutes au total</span>
         </Reveal>
 
         <Reveal as="section" className="ann ann--stat">
@@ -151,23 +159,28 @@ export default async function ArtistPage({
         )}
 
         {topAlbums.length > 0 && (
-          <Reveal as="section" className="ann">
+          <Reveal as="section" className="ann ann--wide">
             <p className="ann__label">albums</p>
-            <ol className="ranks">
+            <div className="shelf">
               {topAlbums.map((al, i) => (
-                <li
-                  className="rank"
-                  key={al.album + i}
-                  style={{ gridTemplateColumns: "1.4em minmax(0, 1fr) auto" }}
-                >
-                  <span className="rank__n mono">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="trk">
-                    <span className="trk__title">{al.album}</span>
-                  </span>
-                  <span className="rank__val">{nf(al.count)}</span>
-                </li>
+                <div className="shelf__item" key={al.album + i}>
+                  {al.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className="shelf__cover" src={al.image} alt="" loading="lazy" />
+                  ) : (
+                    <span className="shelf__cover shelf__cover--vide" aria-hidden="true">
+                      <svg viewBox="0 0 48 48" width="30" height="30">
+                        <circle cx="24" cy="24" r="15" fill="none" stroke="var(--blue)" strokeWidth="3.4" />
+                        <circle cx="24" cy="24" r="8.6" fill="none" stroke="var(--pink)" strokeWidth="3.4" />
+                        <circle cx="24" cy="24" r="3.4" fill="var(--ink)" />
+                      </svg>
+                    </span>
+                  )}
+                  <span className="shelf__title">{al.album}</span>
+                  <span className="shelf__count">{nf(al.count)} écoutes</span>
+                </div>
               ))}
-            </ol>
+            </div>
           </Reveal>
         )}
 

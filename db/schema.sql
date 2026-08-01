@@ -21,8 +21,12 @@ create table if not exists accounts (
   last_sync_at    timestamptz,
   -- clé de session Last.fm (méthodes d'écriture : track.love).
   -- IDENTIFIANT : jamais renvoyé au client, lu côté serveur uniquement.
-  lastfm_session_key text
+  lastfm_session_key text,
+  -- profil consultable par les autres comptes du site (désactivable)
+  public_profile boolean not null default true
 );
+
+create index if not exists accounts_public_idx on accounts (public_profile);
 
 create index if not exists accounts_status_idx on accounts (backfill_status);
 

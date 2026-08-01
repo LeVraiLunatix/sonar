@@ -18,12 +18,18 @@ function norm(s: string): string {
     .trim();
 }
 
-/** Les deux noms désignent-ils vraisemblablement la même chose ? */
-function plausible(a: string, b: string): boolean {
+/**
+ * Correspondance STRICTE : égalité après normalisation.
+ *
+ * ⚠️ Ne pas revenir à une comparaison par inclusion. « Luther » serait accepté
+ * pour « Luther Vandross » (deux artistes différents), et un nom court comme
+ * « H » ou « R2 » correspondrait à presque tout. Mieux vaut aucune photo
+ * qu'une photo fausse.
+ */
+function sameName(a: string, b: string): boolean {
   const x = norm(a);
   const y = norm(b);
-  if (!x || !y) return false;
-  return x === y || x.includes(y) || y.includes(x);
+  return !!x && !!y && x === y;
 }
 
 async function getJson(url: string, signal?: AbortSignal): Promise<unknown> {
@@ -52,26 +58,41 @@ export async function trackDuration(
   };
   for (const hit of json.data ?? []) {
     if (!hit.duration || hit.duration <= 0) continue;
-    const okTrack = hit.title ? plausible(hit.title, track) : false;
-    const okArtist = hit.artist?.name ? plausible(hit.artist.name, artist) : false;
+    const okTrack = hit.title ? sameName(hit.title, track) : false;
+    const okArtist = hit.artist?.name ? sameName(hit.artist.name, artist) : false;
     if (okTrack && okArtist) return Math.round(hit.duration * 1000);
   }
   return null;
 }
 
-/** Photo d'un artiste (taille moyenne), ou null. */
+/**
+ * Photo d'un artiste, ou null.
+ *
+ * Sur un nom exact, Deezer peut renvoyer plusieurs homonymes (reprises,
+ * hommages, comptes parasites). On garde celui qui a le plus de fans : c'est
+ * presque toujours l'artiste que la personne écoute réellement.
+ */
 export async function artistImage(
   artist: string,
   signal?: AbortSignal,
 ): Promise<string | null> {
-  const url = `${API}/search/artist?q=${encodeURIComponent(artist)}&limit=3`;
+  const url = `${API}/search/artist?q=${encodeURIComponent(artist)}&limit=10`;
   const json = (await getJson(url, signal)) as {
-    data?: { name?: string; picture_medium?: string; picture_big?: string }[];
+    data?: {
+      name?: string;
+      nb_fan?: number;
+      picture_medium?: string;
+      picture_big?: string;
+      picture_xl?: string;
+    }[];
   };
-  for (const hit of json.data ?? []) {
-    if (!hit.name || !plausible(hit.name, artist)) continue;
-    const img = hit.picture_big ?? hit.picture_medium;
-    // Deezer renvoie parfois un artiste sans visuel : l'URL existe mais est vide
+
+  const exacts = (json.data ?? []).filter((h) => h.name && sameName(h.name, artist));
+  exacts.sort((a, b) => (b.nb_fan ?? 0) - (a.nb_fan ?? 0));
+
+  for (const hit of exacts) {
+    const img = hit.picture_xl ?? hit.picture_big ?? hit.picture_medium;
+    // Deezer sert parfois un visuel vide : l'URL existe mais ne finit par rien
     if (img && !/\/\/$/.test(img)) return img;
   }
   return null;
