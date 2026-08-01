@@ -234,8 +234,8 @@ async function generateRecommendations(
   const previous = [...history.histories]
     .filter((artist) => artist.previous > 0)
     .sort((a, b) => b.previous - a.previous || b.total - a.total);
-  const seeds = recent.slice(0, 4);
-  const tagSeeds = [...seeds, ...previous.slice(0, 4)].filter(
+  const seeds = recent.slice(0, 6);
+  const tagSeeds = [...seeds.slice(0, 4), ...previous.slice(0, 4)].filter(
     (artist, index, all) => all.findIndex((item) => item.key === artist.key) === index,
   );
 
@@ -254,7 +254,7 @@ async function generateRecommendations(
 
   const [similarResults, trackResults] = await Promise.all([
     Promise.allSettled(
-      seeds.slice(0, 3).map(async (seed) => ({
+      seeds.slice(0, 4).map(async (seed) => ({
         seed,
         artists: await similarArtists(seed.name),
       })),
@@ -293,7 +293,7 @@ async function generateRecommendations(
   }
   const similar: SimilarRecommendation[] = [...similarMap.values()]
     .sort((a, b) => b.weighted - a.weighted)
-    .slice(0, 5)
+    .slice(0, 8)
     .map((artist) => ({
       artist: artist.artist,
       seed: artist.seed,
@@ -308,27 +308,29 @@ async function generateRecommendations(
   const tracks: TrackRecommendation[] = [];
   const proposedTracks = new Set<string>();
   for (const result of trackResults) {
-    if (result.status !== "fulfilled") continue;
+    if (result.status !== "fulfilled" || tracks.length >= 8) continue;
     const artistKey = result.value.seed.key;
-    const unexplored = result.value.tracks.find((track) => {
+    let addedForSeed = 0;
+    for (const track of result.value.tracks) {
+      if (tracks.length >= 8 || addedForSeed >= 2) break;
       const key = `${artistKey}\u001f${normalise(track.name)}`;
-      return !heardTrackKeys.has(key) && !proposedTracks.has(key);
-    });
-    if (!unexplored) continue;
-    proposedTracks.add(`${artistKey}\u001f${normalise(unexplored.name)}`);
-    tracks.push({
-      artist: result.value.seed.name,
-      track: unexplored.name,
-      becauseTrack: favouriteByArtist.get(artistKey)?.track ?? null,
-      seedScrobbles: result.value.seed.recent,
-      url: lastfmTrackUrl(result.value.seed.name, unexplored.name),
-    });
+      if (heardTrackKeys.has(key) || proposedTracks.has(key)) continue;
+      proposedTracks.add(key);
+      tracks.push({
+        artist: result.value.seed.name,
+        track: track.name,
+        becauseTrack: favouriteByArtist.get(artistKey)?.track ?? null,
+        seedScrobbles: result.value.seed.recent,
+        url: lastfmTrackUrl(result.value.seed.name, track.name),
+      });
+      addedForSeed += 1;
+    }
   }
 
   const rediscoveries: RediscoveryRecommendation[] = history.histories
     .filter((artist) => artist.total >= 8 && artist.recent === 0)
     .sort((a, b) => b.total - a.total || a.last.getTime() - b.last.getTime())
-    .slice(0, 5)
+    .slice(0, 8)
     .map((artist) => ({
       artist: artist.name,
       track: favouriteByArtist.get(artist.key)?.track ?? null,
@@ -414,7 +416,7 @@ async function generateRecommendations(
 // recalculer le profil ni solliciter Last.fm à chaque visite.
 const cachedRecommendations = unstable_cache(
   generateRecommendations,
-  ["sonar-recommendations-v2"],
+  ["sonar-recommendations-v3"],
   { revalidate: 6 * 60 * 60 },
 );
 

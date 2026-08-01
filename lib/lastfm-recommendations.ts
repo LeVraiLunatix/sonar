@@ -55,7 +55,7 @@ export async function similarArtists(artist: string): Promise<SimilarArtist[]> {
         | { name?: string; match?: string | number }
         | { name?: string; match?: string | number }[];
     };
-  }>("artist.getsimilar", { artist, limit: "16" });
+  }>("artist.getsimilar", { artist, limit: "24" });
 
   return asArray(json.similarartists?.artist)
     .map((item) => ({
