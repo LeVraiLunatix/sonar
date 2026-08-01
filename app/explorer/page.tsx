@@ -28,14 +28,14 @@ function FlashbackList({ items, unit }: { items: Flashback[]; unit: "an" | "mois
       {items.map((item) => (
         <li className="exp-row" key={`${unit}-${item.date}`}>
           <span className="exp-row__metric">
-            <InkValue>{item.distance}</InkValue>
+            <strong>{item.distance}</strong>
             <small>{unit}{unit === "an" && item.distance > 1 ? "s" : ""}</small>
           </span>
           <Link className="exp-row__main" href={`/day/${item.date}`}>
             <strong>{item.track}</strong>
             <span>{item.artist} · {frDate(`${item.date}T12:00:00Z`)}</span>
           </Link>
-          <span className="exp-row__tail"><InkValue as="span">{nf(item.scrobbles)}</InkValue><small>écoutes</small></span>
+          <span className="exp-row__tail">{nf(item.scrobbles)}<small>écoutes</small></span>
         </li>
       ))}
     </ol>
@@ -124,10 +124,10 @@ export default async function ExplorerPage({
                 <small>{wrap.delta === null ? "première mesure comparable" : `${wrap.delta >= 0 ? "+" : ""}${wrap.delta} % face à la semaine passée`}</small>
               </div>
               <div className="exp-metrics exp-metrics--wrap">
-                <div><InkValue>{humanMs(wrap.estMs)}</InkValue><span>temps estimé</span></div>
+                <div><strong>{humanMs(wrap.estMs)}</strong><span>temps estimé</span></div>
                 <div><strong>{wrap.topArtist?.name ?? "—"}</strong><span>artiste n° 1</span><small>{wrap.topArtist ? `${nf(wrap.topArtist.count)} écoutes` : "aucune écoute"}</small></div>
-                <div><InkValue>{wrap.discoveries}</InkValue><span>découvertes</span><small>{wrap.freshPercent} % de premières écoutes</small></div>
-                <div><InkValue>{wrap.streak} j</InkValue><span>série</span><small>{wrap.obsession ? `obsession : ${wrap.obsession}` : "jours consécutifs"}</small></div>
+                <div><strong>{wrap.discoveries}</strong><span>découvertes</span><small>{wrap.freshPercent} % de premières écoutes</small></div>
+                <div><strong>{wrap.streak} j</strong><span>série</span><small>{wrap.obsession ? `obsession : ${wrap.obsession}` : "jours consécutifs"}</small></div>
               </div>
               {wrap.topTrack && (
                 <p className="wrap-note">titre de la semaine · <strong>{wrap.topTrack.track}</strong> par {wrap.topTrack.artist} · {nf(wrap.topTrack.count)} écoutes</p>
@@ -144,9 +144,9 @@ export default async function ExplorerPage({
                 <ol className="exp-list">
                   {data.albums.map((album) => (
                     <li className="exp-row" key={`${album.artist}-${album.album}`}>
-                      <span className="exp-row__metric"><InkValue>{nf(album.scrobbles)}</InkValue><small>écoutes</small></span>
+                      <span className="exp-row__metric"><strong>{nf(album.scrobbles)}</strong><small>écoutes</small></span>
                       <a className="exp-row__main" href={album.url} target="_blank" rel="noopener noreferrer"><strong>{album.album}</strong><span>{album.artist}</span></a>
-                      <span className="exp-row__tail"><InkValue as="span">{nf(album.silentDays)}</InkValue><small>jours</small></span>
+                      <span className="exp-row__tail">{nf(album.silentDays)}<small>jours</small></span>
                     </li>
                   ))}
                 </ol>
@@ -206,9 +206,9 @@ export default async function ExplorerPage({
                 <ol className="exp-list">
                   {data.favourites.map((item) => (
                     <li className="exp-row" key={`${item.artist}-${item.track}`}>
-                      <span className="exp-row__metric"><InkValue>{nf(item.scrobbles)}</InkValue><small>écoutes</small></span>
+                      <span className="exp-row__metric"><strong>{nf(item.scrobbles)}</strong><small>écoutes</small></span>
                       <a className="exp-row__main" href={item.url} target="_blank" rel="noopener noreferrer"><strong>{item.track}</strong><span>{item.artist}</span></a>
-                      <span className="exp-row__tail"><InkValue as="span">{nf(item.silentDays)}</InkValue><small>jours</small></span>
+                      <span className="exp-row__tail">{nf(item.silentDays)}<small>jours</small></span>
                     </li>
                   ))}
                 </ol>
