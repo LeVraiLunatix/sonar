@@ -266,6 +266,12 @@ a {
     padding: 0;
     margin-bottom: clamp(1.5rem, 3vh, 2.5rem);
   }
+  /* Après le bandeau artiste, la règle linéaire supprime normalement le filet
+     supérieur. Dans le masonry, chaque bloc est une carte : son cadre doit
+     donc être complet, y compris pour la toute première statistique. */
+  .flow > .ann--bleed + .ann {
+    border-top: 1px solid var(--rule);
+  }
   /* Les colonnes ne finissent jamais à la même hauteur (nature du masonry).
      Sans marge, le filet d'un bloc pleine largeur vient se coller à la
      bordure basse de la colonne la plus longue : deux traits se touchent et
@@ -326,7 +332,7 @@ a {
   }
   /* Le gap du flow suffit : la marge de la barre créait un grand vide en plus
      avant le premier contenu, particulièrement visible sur téléphone. */
-  .topbar {
+  .flow > .topbar {
     margin-bottom: 0;
   }
   .flow > * {
@@ -1416,8 +1422,9 @@ a {
   background: linear-gradient(
     to top,
     var(--paper) 2%,
-    color-mix(in srgb, var(--paper) 55%, transparent) 34%,
-    transparent 68%
+    color-mix(in srgb, var(--paper) 88%, transparent) 44%,
+    color-mix(in srgb, var(--paper) 50%, transparent) 66%,
+    transparent 86%
   );
 }
 .art-hero__text {
@@ -1428,6 +1435,9 @@ a {
   padding: clamp(1rem, 3vw, 2rem);
   display: grid;
   gap: 0.3rem;
+}
+.art-hero__text .ann__label {
+  color: var(--ink);
 }
 .art-hero__name {
   margin: 0;
