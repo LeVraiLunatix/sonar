@@ -2172,6 +2172,7 @@ a {
   line-height: 0.76;
   color: var(--data-accent);
 }
+.wrap-lead > .inkvalue { margin-bottom: clamp(1rem, 2vw, 1.6rem); }
 .wrap-lead > span { font-family: var(--font-display), sans-serif; font-size: clamp(1.3rem, 3vw, 2.3rem); font-weight: 800; }
 .wrap-lead small, .wrap-note { margin-top: 0.55rem; font-family: var(--font-data); font-size: 0.62rem; letter-spacing: 0.06em; color: var(--gray); }
 .exp-metrics--wrap strong { font-size: clamp(1.4rem, 3.4vw, 3rem); }
