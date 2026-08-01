@@ -1015,11 +1015,15 @@ a {
 
 @media (max-width: 640px) {
   .home__monthly-caption {
-    font-size: 1.35rem;
-    line-height: 1.35;
+    font-size: 0.9rem;
+    line-height: 1.45;
   }
   .home__monthly-caption .big__unit {
-    font-size: 1.75rem;
+    font-size: 1rem;
+  }
+  .home__monthly .big__ink,
+  .home__monthly .big__ghost {
+    font-size: clamp(7rem, 30vw, 10rem);
   }
   .flow {
     row-gap: 2rem;

@@ -46,7 +46,7 @@ export default async function Home() {
       <div className="flow flow--wide">
         <TopBar />
 
-        <Reveal as="section" className="ann">
+        <Reveal as="section" className="ann home__monthly">
           <p className="ann__label">
             ce mois-ci
             {data.source === "fixtures" ? " · données fictives" : ""}
