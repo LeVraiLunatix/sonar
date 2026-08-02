@@ -308,11 +308,11 @@ async function generateRecommendations(
   const tracks: TrackRecommendation[] = [];
   const proposedTracks = new Set<string>();
   for (const result of trackResults) {
-    if (result.status !== "fulfilled" || tracks.length >= 8) continue;
+    if (result.status !== "fulfilled" || tracks.length >= 24) continue;
     const artistKey = result.value.seed.key;
     let addedForSeed = 0;
     for (const track of result.value.tracks) {
-      if (tracks.length >= 8 || addedForSeed >= 2) break;
+      if (tracks.length >= 24 || addedForSeed >= 4) break;
       const key = `${artistKey}\u001f${normalise(track.name)}`;
       if (heardTrackKeys.has(key) || proposedTracks.has(key)) continue;
       proposedTracks.add(key);
@@ -416,7 +416,7 @@ async function generateRecommendations(
 // recalculer le profil ni solliciter Last.fm à chaque visite.
 const cachedRecommendations = unstable_cache(
   generateRecommendations,
-  ["sonar-recommendations-v3"],
+  ["sonar-recommendations-v4"],
   { revalidate: 6 * 60 * 60 },
 );
 
