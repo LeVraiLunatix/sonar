@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import TopBar from "@/components/TopBar";
 import Reveal from "@/components/Reveal";
 import SurprisePick from "@/components/SurprisePick";
 import InkValue from "@/components/InkValue";
 import { publicAccount } from "@/lib/accounts";
-import { getExplorerData, matchProfiles, type Flashback } from "@/lib/explorer";
-import { frDate, humanMs, nf } from "@/lib/format";
+import { getExplorerData, matchProfiles, type Flashback, type ReleaseSignal } from "@/lib/explorer";
+import { frDate, frMonth, humanMs, nf } from "@/lib/format";
 import { accountForPage } from "@/lib/guard";
 import { getRecommendations } from "@/lib/recommendations";
 
@@ -14,10 +15,14 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Explorer",
-  description: "ADN musical, FLASHBACK, Wrap, RADAR et archives personnelles.",
+  description: "ADN musical, FLASHBACK, Wrap, RADAR, sorties et archives personnelles.",
 };
 
 const pad = (value: number) => String(value).padStart(2, "0");
+const monthLabel = (value: string) => {
+  const [year, month] = value.split("-").map(Number);
+  return `${frMonth(month)} ${year}`;
+};
 
 function FlashbackList({ items, unit }: { items: Flashback[]; unit: "an" | "mois" }) {
   if (items.length === 0) {
@@ -36,6 +41,23 @@ function FlashbackList({ items, unit }: { items: Flashback[]; unit: "an" | "mois
             <span>{item.artist} · {frDate(`${item.date}T12:00:00Z`)}</span>
           </Link>
           <span className="exp-row__tail">{nf(item.scrobbles)}<small>écoutes</small></span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function ReleaseList({ items }: { items: ReleaseSignal[] }) {
+  return (
+    <ol className="exp-list">
+      {items.map((item) => (
+        <li className="exp-row" key={`${item.artist}-${item.title}-${item.date}`}>
+          <span className="exp-row__metric exp-row__metric--word"><strong>{item.type}</strong><small>format</small></span>
+          <a className="exp-row__main" href={item.url} target="_blank" rel="noopener noreferrer">
+            <strong>{item.title}</strong>
+            <span>{item.artist}</span>
+          </a>
+          <span className="exp-row__tail exp-row__tail--date">{frDate(`${item.date}T12:00:00Z`)}</span>
         </li>
       ))}
     </ol>
@@ -67,7 +89,7 @@ export default async function ExplorerPage({
         <TopBar current="explorer" />
 
         <Reveal as="section" className="ann ann--head exp-head">
-          <p className="ann__label">huit façons de relire ton archive</p>
+          <p className="ann__label">treize façons de relire ton archive</p>
           <h1>explorer</h1>
           <p className="prose">Ton historique ne compte pas seulement les écoutes. Il garde les retours, les habitudes et les morceaux laissés derrière.</p>
           <nav className="exp-index" aria-label="Fonctionnalités d’Explorer">
@@ -75,6 +97,11 @@ export default async function ExplorerPage({
             <a href="#flashback">FLASHBACK</a>
             <a href="#wrap">Le Wrap</a>
             <a href="#albums">Albums</a>
+            <a href="#sorties-ratees">Sorties ratées</a>
+            <a href="#sorties-a-venir">À venir</a>
+            <a href="#albums-a-finir">À finir</a>
+            <a href="#nettoyage">Nettoyage</a>
+            <a href="#trajectoire">Trajectoire</a>
             <a href="#pioche">Pioche</a>
             <a href="#match">Match</a>
             <a href="#radar">RADAR</a>
@@ -151,6 +178,87 @@ export default async function ExplorerPage({
                   ))}
                 </ol>
               ) : <p className="note">aucun album assez ancien à relancer.</p>}
+            </Reveal>
+
+            <Reveal as="section" className="ann ann--wide exp-section" id="sorties-ratees">
+              <p className="ann__label">albums, singles et EP · 18 derniers mois</p>
+              <h2>sorties ratées</h2>
+              <div className="exp-feature-lead">
+                <InkValue>{nf(data.missedReleases.length)}</InkValue>
+                <span>sorties de tes artistes forts absentes de ton historique</span>
+              </div>
+              {data.missedReleases.length > 0
+                ? <ReleaseList items={data.missedReleases} />
+                : <p className="note">aucune sortie récente manquée n’a été retrouvée.</p>}
+            </Reveal>
+
+            <Reveal as="section" className="ann exp-section" id="sorties-a-venir">
+              <p className="ann__label">les 12 prochains mois</p>
+              <h2>sorties à venir</h2>
+              {data.upcomingReleases.length > 0
+                ? <ReleaseList items={data.upcomingReleases} />
+                : <p className="note">aucune sortie annoncée pour tes artistes principaux.</p>}
+            </Reveal>
+
+            <Reveal as="section" className="ann exp-section" id="albums-a-finir">
+              <p className="ann__label">tracklists comparées à ton historique réel</p>
+              <h2>albums à finir</h2>
+              {data.albumsToFinish.length > 0 ? (
+                <ol className="finish-list">
+                  {data.albumsToFinish.map((album) => (
+                    <li key={`${album.artist}-${album.album}`}>
+                      <a href={album.url} target="_blank" rel="noopener noreferrer">
+                        <span className="finish-list__score">{album.heard}<small>/ {album.total}</small></span>
+                        <span className="finish-list__copy">
+                          <strong>{album.album}</strong>
+                          <span>{album.artist} · {album.missing.join(" · ")}</span>
+                        </span>
+                        <span className="finish-list__percent">{album.percent}%</span>
+                      </a>
+                      <span className="finish-list__bar" style={{ "--finish": `${album.percent}%` } as CSSProperties} aria-hidden="true" />
+                    </li>
+                  ))}
+                </ol>
+              ) : <p className="note">aucun album incomplet avec une tracklist fiable.</p>}
+            </Reveal>
+
+            <Reveal as="section" className="ann exp-section" id="nettoyage">
+              <p className="ann__label">variantes repérées sans modifier Last.fm</p>
+              <h2>nettoyage de l’archive</h2>
+              {data.cleanupIssues.length > 0 ? (
+                <ol className="exp-list">
+                  {data.cleanupIssues.map((issue) => (
+                    <li className="cleanup-row" key={`${issue.artist}-${issue.canonical}`}>
+                      <span className="cleanup-row__count">{nf(issue.scrobbles)}<small>écoutes réunies</small></span>
+                      <div>
+                        <strong>{issue.canonical}</strong>
+                        <span>{issue.artist} · {issue.variants.join(" ↔ ")}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              ) : <p className="note">aucune variante « remaster » à regrouper : l’archive est propre.</p>}
+            </Reveal>
+
+            <Reveal as="section" className="ann ann--wide exp-section" id="trajectoire">
+              <p className="ann__label">tes artistes les plus présents depuis le premier scrobble</p>
+              <h2>trajectoire</h2>
+              <ol className="trajectory-grid">
+                {data.trajectories.map((item) => (
+                  <li key={item.artist}>
+                    <Link href={`/artist/${encodeURIComponent(item.artist)}`}>
+                      <strong>{item.artist}</strong>
+                      <span className="trajectory-grid__total">{nf(item.scrobbles)}<small>scrobbles</small></span>
+                      <dl>
+                        <div><dt>découverte</dt><dd>{frDate(`${item.discovered}T12:00:00Z`)}</dd></div>
+                        <div><dt>pic</dt><dd>{monthLabel(item.peakMonth)} · {nf(item.peakScrobbles)}</dd></div>
+                        <div><dt>plus long silence</dt><dd>{nf(item.longestGapDays)} jours</dd></div>
+                        <div><dt>dernière écoute</dt><dd>{frDate(`${item.lastListen}T12:00:00Z`)}</dd></div>
+                      </dl>
+                    </Link>
+                  </li>
+                ))}
+              </ol>
             </Reveal>
 
             <Reveal as="section" className="ann exp-section" id="pioche">

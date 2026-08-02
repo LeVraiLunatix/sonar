@@ -31,6 +31,7 @@ async function callLastfm<T>(
   });
   const response = await fetch(`${API}?${query.toString()}`, {
     headers: { "User-Agent": "Sonar/0.1 (personal recommendations)" },
+    signal: AbortSignal.timeout(5_000),
     next: { revalidate },
   });
   const json = (await response.json()) as T & { error?: number; message?: string };
@@ -168,4 +169,35 @@ export async function artistTopTags(artist: string): Promise<ArtistTag[]> {
     }))
     .filter((item) => item.name && item.weight > 0)
     .slice(0, 10);
+}
+
+export type AlbumTracklist = {
+  artist: string;
+  album: string;
+  tracks: string[];
+};
+
+/** Tracklist officielle Last.fm, mutualisée par le cache de catalogue. */
+export async function albumTracklist(
+  artist: string,
+  album: string,
+): Promise<AlbumTracklist | null> {
+  const json = await callLastfm<{
+    album?: {
+      name?: string;
+      artist?: string;
+      tracks?: {
+        track?: { name?: string } | Array<{ name?: string }>;
+      };
+    };
+  }>("album.getinfo", { artist, album });
+  const tracks = asArray(json.album?.tracks?.track)
+    .map((track) => clean(track.name))
+    .filter((track): track is string => track !== null);
+  if (tracks.length === 0) return null;
+  return {
+    artist: clean(json.album?.artist) ?? artist,
+    album: clean(json.album?.name) ?? album,
+    tracks,
+  };
 }

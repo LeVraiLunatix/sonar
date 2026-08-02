@@ -1,7 +1,8 @@
 import { addDays, isoWeekOf, parisToday, weekRange } from "./dates";
 import { sql } from "./db";
 import { freshVsRepeat, obsessions } from "./insights";
-import { userFriendListens } from "./lastfm-recommendations";
+import { albumTracklist, userFriendListens } from "./lastfm-recommendations";
+import { artistsReleaseGroups } from "./musicbrainz";
 import {
   discoveries,
   perDay,
@@ -87,6 +88,41 @@ export type ProfileMatch = {
   forThem: Array<{ name: string; count: number }>;
 };
 
+export type ReleaseSignal = {
+  artist: string;
+  title: string;
+  type: "Album" | "Single" | "EP";
+  date: string;
+  url: string;
+};
+
+export type AlbumToFinish = {
+  artist: string;
+  album: string;
+  heard: number;
+  total: number;
+  percent: number;
+  missing: string[];
+  url: string;
+};
+
+export type CleanupIssue = {
+  artist: string;
+  canonical: string;
+  variants: string[];
+  scrobbles: number;
+};
+
+export type ArtistTrajectory = {
+  artist: string;
+  scrobbles: number;
+  discovered: string;
+  peakMonth: string;
+  peakScrobbles: number;
+  longestGapDays: number;
+  lastListen: string;
+};
+
 export type ExplorerData = {
   available: boolean;
   dna: MusicalDna;
@@ -97,6 +133,11 @@ export type ExplorerData = {
   favourites: ArchivedFavourite[];
   radar: RadarListen[];
   radarAvailable: boolean;
+  missedReleases: ReleaseSignal[];
+  upcomingReleases: ReleaseSignal[];
+  albumsToFinish: AlbumToFinish[];
+  cleanupIssues: CleanupIssue[];
+  trajectories: ArtistTrajectory[];
 };
 
 async function musicalDna(account: string, today: string): Promise<MusicalDna> {
@@ -282,6 +323,201 @@ async function albumsToResume(account: string, today: string): Promise<AlbumToRe
   }));
 }
 
+async function releaseSignals(
+  account: string,
+  today: string,
+): Promise<{ missed: ReleaseSignal[]; upcoming: ReleaseSignal[] }> {
+  const [artists, heard] = await Promise.all([
+    sql<{ artist: string; scrobbles: number }[]>`
+      select mode() within group (order by artist) as artist,
+             count(*)::int as scrobbles
+      from scrobbles
+      where account = ${account}
+        and played_at >= (${addDays(today, -365)}::timestamp at time zone ${APP_TZ})
+      group by lower(artist)
+      order by scrobbles desc
+      limit 8
+    `,
+    sql<{ artist_key: string; title_key: string }[]>`
+      select distinct lower(artist) as artist_key, lower(album) as title_key
+      from scrobbles
+      where account = ${account} and album is not null and album <> ''
+      union
+      select distinct lower(artist) as artist_key, lower(track) as title_key
+      from scrobbles
+      where account = ${account}
+    `,
+  ]);
+  try {
+    const releases = await artistsReleaseGroups(artists.map((item) => item.artist));
+    const heardKeys = new Set(
+      heard.map((item) => `${normalise(item.artist_key)}\u001f${normalise(item.title_key)}`),
+    );
+    const seen = new Set<string>();
+    const unique = releases.filter((release) => {
+      const key = `${normalise(release.artist)}\u001f${normalise(release.title)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const asSignal = (release: (typeof releases)[number]): ReleaseSignal => ({
+      artist: release.artist,
+      title: release.title,
+      type: release.type,
+      date: release.date,
+      url: release.url,
+    });
+    const missed = unique
+      .filter((release) => {
+        const key = `${normalise(release.artist)}\u001f${normalise(release.title)}`;
+        return release.date <= today
+          && release.date >= addDays(today, -550)
+          && !heardKeys.has(key);
+      })
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 8)
+      .map(asSignal);
+    const upcoming = unique
+      .filter((release) => release.date > today && release.date <= addDays(today, 370))
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 8)
+      .map(asSignal);
+    return { missed, upcoming };
+  } catch {
+    return { missed: [], upcoming: [] };
+  }
+}
+
+async function albumsToFinish(account: string): Promise<AlbumToFinish[]> {
+  const candidates = await sql<{
+    artist: string;
+    album: string;
+    tracks: string[];
+  }[]>`
+    select mode() within group (order by artist) as artist,
+           mode() within group (order by album) as album,
+           array_agg(distinct track order by track)::text[] as tracks
+    from scrobbles
+    where account = ${account} and album is not null and album <> ''
+    group by lower(artist), lower(album)
+    having count(distinct lower(track)) >= 2
+    order by max(played_at) desc, count(*) desc
+    limit 6
+  `;
+  const results = await Promise.allSettled(
+    candidates.map(async (candidate) => {
+      const info = await albumTracklist(candidate.artist, candidate.album);
+      if (!info || info.tracks.length < 3) return null;
+      const heardKeys = new Set(candidate.tracks.map(normalise));
+      const missing = info.tracks.filter((track) => !heardKeys.has(normalise(track)));
+      const heard = info.tracks.length - missing.length;
+      if (heard <= 0 || missing.length === 0) return null;
+      return {
+        artist: info.artist,
+        album: info.album,
+        heard,
+        total: info.tracks.length,
+        percent: Math.round((heard / info.tracks.length) * 100),
+        missing: missing.slice(0, 3),
+        url: lastfmAlbumUrl(info.artist, info.album),
+      } satisfies AlbumToFinish;
+    }),
+  );
+  return results
+    .filter((result): result is PromiseFulfilledResult<AlbumToFinish | null> => result.status === "fulfilled")
+    .map((result) => result.value)
+    .filter((item): item is AlbumToFinish => item !== null)
+    .sort((a, b) => b.percent - a.percent || a.total - b.total)
+    .slice(0, 6);
+}
+
+async function archiveCleanup(account: string): Promise<CleanupIssue[]> {
+  const rows = await sql<{
+    artist: string;
+    variants: string[];
+    scrobbles: number;
+  }[]>`
+    with prepared as (
+      select artist, track,
+             lower(artist) as artist_key,
+             trim(regexp_replace(
+               regexp_replace(lower(track),
+                 '\\s*[-–—]\\s*(\\d{4}\\s*)?remaster(ed)?(\\s*\\d{4})?.*$', '', 'i'),
+               '\\s*[\\[(]\\s*(\\d{4}\\s*)?remaster(ed)?[^\\])]*[\\])]\\s*$', '', 'i'
+             )) as base_key
+      from scrobbles
+      where account = ${account}
+    )
+    select mode() within group (order by artist) as artist,
+           array_agg(distinct track order by track)::text[] as variants,
+           count(*)::int as scrobbles
+    from prepared
+    where base_key <> ''
+    group by artist_key, base_key
+    having count(distinct track) > 1
+    order by scrobbles desc
+    limit 8
+  `;
+  return rows.map((row) => ({
+    artist: row.artist,
+    canonical: [...row.variants].sort((a, b) => a.length - b.length)[0] ?? row.variants[0],
+    variants: row.variants,
+    scrobbles: row.scrobbles,
+  }));
+}
+
+async function artistTrajectories(account: string): Promise<ArtistTrajectory[]> {
+  return sql<ArtistTrajectory[]>`
+    with top as (
+      select lower(artist) as artist_key
+      from scrobbles where account = ${account}
+      group by lower(artist)
+      order by count(*) desc
+      limit 6
+    ),
+    base as (
+      select lower(s.artist) as artist_key, s.artist,
+             (s.played_at at time zone ${APP_TZ})::date as day
+      from scrobbles s join top t on t.artist_key = lower(s.artist)
+      where s.account = ${account}
+    ),
+    totals as (
+      select artist_key, mode() within group (order by artist) as artist,
+             count(*)::int as scrobbles, min(day) as discovered, max(day) as last_listen
+      from base group by artist_key
+    ),
+    monthly as (
+      select artist_key, date_trunc('month', day)::date as month, count(*)::int as scrobbles
+      from base group by artist_key, date_trunc('month', day)
+    ),
+    peak as (
+      select *, row_number() over (partition by artist_key order by scrobbles desc, month desc) as rank
+      from monthly
+    ),
+    distinct_days as (
+      select distinct artist_key, day from base
+    ),
+    gap_rows as (
+      select artist_key, day - lag(day) over (partition by artist_key order by day) as gap
+      from distinct_days
+    ),
+    gaps as (
+      select artist_key, coalesce(max(gap), 0)::int as longest_gap
+      from gap_rows group by artist_key
+    )
+    select t.artist, t.scrobbles,
+           to_char(t.discovered, 'YYYY-MM-DD') as discovered,
+           to_char(p.month, 'YYYY-MM') as "peakMonth",
+           p.scrobbles::int as "peakScrobbles",
+           g.longest_gap::int as "longestGapDays",
+           to_char(t.last_listen, 'YYYY-MM-DD') as "lastListen"
+    from totals t
+    join peak p on p.artist_key = t.artist_key and p.rank = 1
+    join gaps g on g.artist_key = t.artist_key
+    order by t.scrobbles desc
+  `;
+}
+
 async function archivedFavourites(account: string, today: string): Promise<ArchivedFavourite[]> {
   const rows = await sql<{
     artist: string;
@@ -420,9 +656,26 @@ export async function getExplorerData(account: string | null): Promise<ExplorerD
       favourites: [],
       radar: [],
       radarAvailable: false,
+      missedReleases: [],
+      upcomingReleases: [],
+      albumsToFinish: [],
+      cleanupIssues: [],
+      trajectories: [],
     };
   }
-  const [dna, yearlyFlashbacks, monthlyFlashbacks, wrap, albums, favourites, radarData] =
+  const [
+    dna,
+    yearlyFlashbacks,
+    monthlyFlashbacks,
+    wrap,
+    albums,
+    favourites,
+    radarData,
+    releases,
+    unfinished,
+    cleanupIssues,
+    trajectories,
+  ] =
     await Promise.all([
       musicalDna(account, today),
       flashbacks(account, today, "year"),
@@ -431,6 +684,10 @@ export async function getExplorerData(account: string | null): Promise<ExplorerD
       albumsToResume(account, today),
       archivedFavourites(account, today),
       radar(account),
+      releaseSignals(account, today),
+      albumsToFinish(account),
+      archiveCleanup(account),
+      artistTrajectories(account),
     ]);
   return {
     available: true,
@@ -442,5 +699,10 @@ export async function getExplorerData(account: string | null): Promise<ExplorerD
     favourites,
     radar: radarData.items,
     radarAvailable: radarData.available,
+    missedReleases: releases.missed,
+    upcomingReleases: releases.upcoming,
+    albumsToFinish: unfinished,
+    cleanupIssues,
+    trajectories,
   };
 }
