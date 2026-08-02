@@ -13,10 +13,12 @@ const LIVE_GRACE_MS = 1500;
  * Réconcilie une agrégation SQL contenant aujourd'hui avec le compteur du jour
  * lu en direct chez Last.fm. L'écart disparaît naturellement après AutoSync.
  *
- * Le grand compteur (big) n'apparaît qu'une fois cette réconciliation connue
- * (ou le délai ci-dessus dépassé) : sinon son animation d'entrée démarre sur
- * une valeur provisoire, se termine, puis reprend en cours de route dès que
- * le direct arrive — un palier visible au milieu de la montée.
+ * Le grand compteur affiche la valeur connue tout de suite, en statique
+ * (pas de vide au chargement). Il n'amorce sa montée animée qu'une fois la
+ * réconciliation live connue (ou le délai ci-dessus dépassé) : sinon son
+ * animation d'entrée démarre sur une valeur provisoire, se termine, puis
+ * reprend en cours de route dès que le direct arrive — un palier visible
+ * au milieu de la montée.
  */
 export default function LivePeriodCount({
   initial,
@@ -43,10 +45,11 @@ export default function LivePeriodCount({
 
   if (!big) return <>{nf(value)}</>;
   if (!settled) {
+    const text = nf(value);
     return (
-      <span className="big" aria-hidden="true">
-        <span className="big__ghost" />
-        <span className="big__ink" />
+      <span className="big">
+        <span className="big__ghost" aria-hidden="true">{text}</span>
+        <span className="big__ink">{text}</span>
       </span>
     );
   }
