@@ -109,6 +109,27 @@ export type SimilarArtist = {
   match: number;
 };
 
+export type ArtistIdentity = {
+  name: string;
+  mbid: string;
+};
+
+/**
+ * Résout un nom Last.fm vers son identifiant MusicBrainz permanent. Un nom
+ * seul n'est jamais assez sûr pour les homonymes (Favé/FAVE, Luther, etc.).
+ */
+export async function artistIdentity(artist: string): Promise<ArtistIdentity | null> {
+  const json = await callLastfm<{
+    artist?: { name?: string; mbid?: string };
+  }>("artist.getinfo", { artist });
+  const name = clean(json.artist?.name);
+  const mbid = clean(json.artist?.mbid);
+  if (!name || !mbid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mbid)) {
+    return null;
+  }
+  return { name, mbid: mbid.toLowerCase() };
+}
+
 export async function similarArtists(artist: string): Promise<SimilarArtist[]> {
   const json = await callLastfm<{
     similarartists?: {

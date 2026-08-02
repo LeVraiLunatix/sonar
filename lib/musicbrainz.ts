@@ -4,14 +4,6 @@ const CATALOG_TTL = 3 * 24 * 60 * 60;
 const clean = (value: unknown): string =>
   typeof value === "string" ? value.trim() : "";
 
-const normalise = (value: string): string =>
-  value
-    .toLocaleLowerCase("fr-FR")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
 const escapeQuery = (value: string): string =>
   value.replace(/[+\-&|!(){}\[\]^"~*?:\\/]/g, "\\$&");
 
@@ -29,11 +21,17 @@ export type ReleaseGroup = {
  * jours de cache suffisent pour voir les nouvelles annonces sans solliciter
  * son API à chaque ouverture d'Explorer.
  */
-export async function artistsReleaseGroups(artists: string[]): Promise<ReleaseGroup[]> {
-  const wanted = [...new Set(artists.map((artist) => artist.trim()).filter(Boolean))].slice(0, 8);
+export async function artistsReleaseGroups(
+  artists: Array<{ name: string; mbid: string }>,
+): Promise<ReleaseGroup[]> {
+  const wanted = [...new Map(
+    artists
+      .filter((artist) => artist.name.trim() && /^[0-9a-f-]{36}$/i.test(artist.mbid))
+      .map((artist) => [artist.mbid.toLowerCase(), { ...artist, mbid: artist.mbid.toLowerCase() }]),
+  ).values()].slice(0, 8);
   if (wanted.length === 0) return [];
   const query = wanted
-    .map((artist) => `artist:\"${escapeQuery(artist)}\"`)
+    .map((artist) => `arid:${escapeQuery(artist.mbid)}`)
     .join(" OR ");
   const url = new URL(`${MUSICBRAINZ_API}/release-group`);
   url.searchParams.set("query", query);
@@ -56,15 +54,19 @@ export async function artistsReleaseGroups(artists: string[]): Promise<ReleaseGr
       title?: string;
       "primary-type"?: string;
       "first-release-date"?: string;
-      "artist-credit"?: Array<{ name?: string; artist?: { name?: string } }>;
+      "artist-credit"?: Array<{ name?: string; artist?: { id?: string; name?: string } }>;
     }>;
   };
-  const expected = new Set(wanted.map(normalise));
+  const expected = new Map(wanted.map((artist) => [artist.mbid, artist.name]));
 
   return (json["release-groups"] ?? [])
     .map((group) => {
-      const credited = clean(group["artist-credit"]?.[0]?.artist?.name)
-        || clean(group["artist-credit"]?.[0]?.name);
+      const credit = group["artist-credit"]?.find((item) => {
+        const id = clean(item.artist?.id).toLowerCase();
+        return expected.has(id);
+      });
+      const artistId = clean(credit?.artist?.id).toLowerCase();
+      const credited = expected.get(artistId) ?? "";
       const type = clean(group["primary-type"]);
       const id = clean(group.id);
       const title = clean(group.title);
@@ -73,7 +75,8 @@ export async function artistsReleaseGroups(artists: string[]): Promise<ReleaseGr
         !id
         || !title
         || !/^\d{4}-\d{2}-\d{2}$/.test(date)
-        || !expected.has(normalise(credited))
+        || !artistId
+        || !credited
         || !["Album", "Single", "EP"].includes(type)
       ) return null;
       return {

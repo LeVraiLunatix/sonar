@@ -1,7 +1,7 @@
 import { addDays, isoWeekOf, parisToday, weekRange } from "./dates";
 import { sql } from "./db";
 import { freshVsRepeat, obsessions } from "./insights";
-import { albumTracklist, userFriendListens } from "./lastfm-recommendations";
+import { albumTracklist, artistIdentity, userFriendListens } from "./lastfm-recommendations";
 import { artistsReleaseGroups } from "./musicbrainz";
 import {
   discoveries,
@@ -328,8 +328,10 @@ async function releaseSignals(
   today: string,
 ): Promise<{ missed: ReleaseSignal[]; upcoming: ReleaseSignal[] }> {
   const [artists, heard] = await Promise.all([
-    sql<{ artist: string; scrobbles: number }[]>`
+    sql<{ artist: string; artist_mbid: string | null; scrobbles: number }[]>`
       select mode() within group (order by artist) as artist,
+             mode() within group (order by artist_mbid)
+               filter (where artist_mbid is not null and artist_mbid <> '') as artist_mbid,
              count(*)::int as scrobbles
       from scrobbles
       where account = ${account}
@@ -349,7 +351,21 @@ async function releaseSignals(
     `,
   ]);
   try {
-    const releases = await artistsReleaseGroups(artists.map((item) => item.artist));
+    const identityResults = await Promise.allSettled(
+      artists.map(async (item) => {
+        const localMbid = item.artist_mbid?.trim().toLowerCase() ?? "";
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(localMbid)) {
+          return { name: item.artist, mbid: localMbid };
+        }
+        const resolved = await artistIdentity(item.artist);
+        return resolved ? { name: item.artist, mbid: resolved.mbid } : null;
+      }),
+    );
+    const identities = identityResults
+      .filter((result): result is PromiseFulfilledResult<{ name: string; mbid: string } | null> => result.status === "fulfilled")
+      .map((result) => result.value)
+      .filter((identity): identity is { name: string; mbid: string } => identity !== null);
+    const releases = await artistsReleaseGroups(identities);
     const heardKeys = new Set(
       heard.map((item) => `${normalise(item.artist_key)}\u001f${normalise(item.title_key)}`),
     );
