@@ -55,12 +55,35 @@ const FEATURES: { k: string; v: string }[] = [
   { k: "le fil d’une journée", v: "l’ordre exact des morceaux, minute par minute" },
 ];
 
+function errorMessage(error: string | undefined, denied: string | undefined): string | null {
+  if (denied) return `${denied} : l’accès n’est pas encore ouvert à ce compte.`;
+  switch (error) {
+    case "config":
+      return "connexion Last.fm non configurée (clé / secret manquants)";
+    case "spotify-config":
+      return "connexion Spotify non configurée (clé / secret manquants)";
+    case "spotify-closed":
+      return "la connexion Spotify n’est pas encore ouverte à tous les comptes";
+    case "spotify-denied":
+      return "l’autorisation Spotify a été refusée";
+    case "spotify-state":
+      return "la connexion Spotify a échoué (état invalide), réessaie";
+    case "spotify-failed":
+      return "la connexion Spotify a échoué, réessaie";
+    case undefined:
+      return null;
+    default:
+      return "la connexion Last.fm a échoué, réessaie";
+  }
+}
+
 export default async function LandingPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; denied?: string; detail?: string }>;
 }) {
   const { error, denied, detail } = await searchParams;
+  const message = errorMessage(error, denied);
 
   return (
     <main className="landing">
@@ -93,16 +116,20 @@ export default async function LandingPage({
           <a className="btn btn--solid" href="/api/auth/login">
             Se connecter avec Last.fm
           </a>
+          <a className="btn btn--ghost" href="/api/spotify/login">
+            Se connecter avec Spotify
+          </a>
           <span className="note">gratuit · aucune donnée revendue</span>
         </div>
+        <p className="note" style={{ marginTop: "0.5rem" }}>
+          Last.fm donne l’historique complet, consultable pour toujours.
+          Spotify ne donne que tes tops actuels et ta lecture en cours — deux
+          expériences différentes, à toi de choisir.
+        </p>
 
-        {(denied || error) && (
+        {message && (
           <p className="login__error mono" role="alert">
-            {denied
-              ? `${denied} : l’accès n’est pas encore ouvert à ce compte.`
-              : error === "config"
-                ? "connexion Last.fm non configurée (clé / secret manquants)"
-                : "la connexion Last.fm a échoué, réessaie"}
+            {message}
             {detail ? (
               <>
                 <br />↳ {detail}
@@ -190,10 +217,14 @@ export default async function LandingPage({
           <a className="btn btn--solid" href="/api/auth/login">
             Se connecter avec Last.fm
           </a>
+          <a className="btn btn--ghost" href="/api/spotify/login">
+            Se connecter avec Spotify
+          </a>
         </div>
         <p className="note" style={{ marginTop: "2rem" }}>
-          Sonar lit tes écoutes publiques via l’API Last.fm. Aucun mot de passe
-          ne transite par ce site.
+          Sonar lit tes écoutes publiques via l’API Last.fm ou tes tops
+          Spotify, selon ce que tu choisis. Aucun mot de passe ne transite par
+          ce site.
         </p>
       </Reveal>
     </main>

@@ -216,3 +216,47 @@ export async function clearSpotifyTokens(username: string): Promise<void> {
     where username_key = ${username.toLowerCase()}
   `;
 }
+
+/** Compte déjà créé pour cet identifiant Spotify (reconnexion), ou null. */
+export async function accountBySpotifyId(spotifyUserId: string): Promise<string | null> {
+  const [row] = await sql<{ username: string }[]>`
+    select username from accounts where spotify_user_id = ${spotifyUserId}
+  `;
+  return row?.username ?? null;
+}
+
+/**
+ * Crée un compte Sonar dont l'identité est Spotify — pas de Last.fm associé.
+ * Rien à importer (l'API Spotify ne donne pas d'historique) : le compte est
+ * marqué "import terminé" dès la création, pour ne jamais passer par /onboarding.
+ */
+export async function createSpotifyAccount(opts: {
+  spotifyUserId: string;
+  displayName: string | null;
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+}): Promise<string> {
+  const base =
+    (opts.displayName ?? "").trim().slice(0, 64) || `spotify-${opts.spotifyUserId.slice(0, 8)}`;
+
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const candidate = attempt === 0 ? base : `${base} ${attempt + 1}`;
+    const [row] = await sql<{ username: string }[]>`
+      insert into accounts (
+        username, username_key, backfill_status,
+        spotify_access_token, spotify_refresh_token, spotify_token_expires_at,
+        spotify_user_id, spotify_display_name
+      )
+      values (
+        ${candidate}, ${candidate.toLowerCase()}, 'done',
+        ${opts.accessToken}, ${opts.refreshToken}, ${opts.expiresAt},
+        ${opts.spotifyUserId}, ${opts.displayName}
+      )
+      on conflict (username_key) do nothing
+      returning username
+    `;
+    if (row) return row.username;
+  }
+  throw new Error("impossible de créer un pseudo Spotify unique");
+}
