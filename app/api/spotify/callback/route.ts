@@ -27,7 +27,8 @@ export async function GET(req: Request) {
   const failTo = mode === "connect" ? "/spotify" : "/login";
 
   if (!mode || !expectedState) {
-    return NextResponse.redirect(new URL(`${failTo}?error=state`, origin), { status: 303 });
+    const c = mode === "connect" ? "state" : "spotify-state";
+    return NextResponse.redirect(new URL(`${failTo}?error=${c}`, origin), { status: 303 });
   }
 
   const clientId = process.env.SPOTIFY_CLIENT_ID;
