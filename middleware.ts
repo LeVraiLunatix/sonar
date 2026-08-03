@@ -3,9 +3,10 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE, readSession } from "./lib/auth";
 
 // Routes accessibles sans session.
-// /api/spotify : nécessaire pour le "se connecter avec Spotify" depuis /login,
-// qui n'a par définition pas encore de session au moment de l'appel.
-const PUBLIC = ["/login", "/api/auth", "/api/spotify", "/api/cron"];
+// /api/spotify/login|callback : nécessaires pour le "se connecter avec Spotify"
+// depuis /login, qui n'a par définition pas encore de session au moment de
+// l'appel. Le reste de /api/spotify (import, disconnect) reste protégé.
+const PUBLIC = ["/login", "/api/auth", "/api/spotify/login", "/api/spotify/callback", "/api/cron"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

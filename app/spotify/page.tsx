@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import TopBar from "@/components/TopBar";
 import Reveal from "@/components/Reveal";
+import SpotifyImportRunner from "@/components/SpotifyImportRunner";
 import { accountForPage } from "@/lib/guard";
 import { humanMs, nf } from "@/lib/format";
 import type { TimeRange, SpotifyTrack, SpotifyArtist, NowPlaying } from "@/lib/spotify";
@@ -81,9 +82,12 @@ export default async function SpotifyPage({
           <p className="ann__label">en plus de Last.fm</p>
           <h1>spotify</h1>
           <p className="prose">
-            Spotify ne donne pas l’historique complet comme Last.fm — seulement
-            tes titres et artistes les plus écoutés sur trois fenêtres fixées
-            par Spotify, et ce qui joue en ce moment.
+            L’API Spotify en direct ne donne pas l’historique complet comme
+            Last.fm — seulement tes titres et artistes les plus écoutés sur
+            trois fenêtres fixées par Spotify, et ce qui joue en ce moment.
+            Pour une vraie archive (jour, semaine, mois, année, pour
+            toujours), importe ton export RGPD ci-dessous : une fois importé,
+            tout le reste du site fonctionne pareil qu’avec Last.fm.
           </p>
         </Reveal>
 
@@ -92,6 +96,25 @@ export default async function SpotifyPage({
             <p className="login__error mono" role="alert">
               {message ?? loadError}
             </p>
+          </Reveal>
+        )}
+
+        {account && process.env.DATABASE_URL && (
+          <Reveal as="section" className="ann">
+            <p className="ann__label">importer ton historique complet</p>
+            <p className="prose">
+              Sur{" "}
+              <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener noreferrer">
+                spotify.com/account/privacy
+              </a>
+              , demande ton « historique de streaming étendu ». Spotify met
+              jusqu’à environ 30 jours à préparer le fichier et te l’envoie par
+              e-mail (un lien de téléchargement, un dossier de fichiers
+              <code>.json</code>). Reviens ici une fois reçu.
+            </p>
+            <div style={{ marginTop: "1rem" }}>
+              <SpotifyImportRunner />
+            </div>
           </Reveal>
         )}
 

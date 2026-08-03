@@ -1,5 +1,6 @@
 import { sql } from "./db";
 import { fetchRecent, sleep, type Scrobble } from "./lastfm";
+import type { ParsedPlay } from "./spotify-import";
 import {
   getAccount,
   markSynced,
@@ -46,6 +47,36 @@ export async function insertScrobbles(account: string, rows: Scrobble[]): Promis
       "album_mbid",
       "image_url",
       "loved",
+      "source",
+    )}
+    on conflict (account, played_at, track, artist) do nothing
+  `;
+  return res.count;
+}
+
+/** Insertion en batch de lectures Spotify importées (export RGPD), idempotente. */
+export async function insertSpotifyPlays(account: string, plays: ParsedPlay[]): Promise<number> {
+  if (plays.length === 0) return 0;
+  const values = plays.map((p) => ({
+    account,
+    played_at: p.played_at,
+    track: p.track,
+    artist: p.artist,
+    album: p.album,
+    ms_played: p.ms_played,
+    skipped: p.skipped,
+    source: "spotify",
+  }));
+  const res = await sql`
+    insert into scrobbles ${sql(
+      values,
+      "account",
+      "played_at",
+      "track",
+      "artist",
+      "album",
+      "ms_played",
+      "skipped",
       "source",
     )}
     on conflict (account, played_at, track, artist) do nothing

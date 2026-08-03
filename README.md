@@ -88,16 +88,17 @@ app/
   api/sync/self/route.ts    sync opportuniste du compte de la session
   api/backfill/…            import initial piloté depuis le client
   api/auth/…                OAuth Last.fm (login, callback, logout)
-  api/spotify/…             OAuth Spotify (login, callback, disconnect)
-  spotify/page.tsx          tops Spotify (4 sem / 6 mois / toujours) + lecture en cours
+  api/spotify/…             OAuth Spotify (login, callback, disconnect) + import RGPD
+  spotify/page.tsx          tops Spotify (4 sem / 6 mois / toujours) + lecture en cours + import
   api/cron/sync/route.ts    endpoint appelé par Vercel Cron (tous les comptes)
 components/                 MiniPlayer, PeriodView, AmplitudeSpine, Clock, Heatmap,
-                            SmoothScroll, Reveal, BigCount, AutoSync…
+                            SmoothScroll, Reveal, BigCount, AutoSync, SpotifyImportRunner…
 lib/
   lastfm.ts                 client user.getRecentTracks (pièges section 5 gérés)
   lastfm-auth.ts            OAuth + signature md5 + track.love
   spotify.ts                client Web API (tops, lecture en cours) + rafraîchissement de jeton
   spotify-auth.ts           OAuth (authorization code flow)
+  spotify-import.ts         parseur de l'export RGPD (2 formats), isomorphe client/serveur
   auth.ts / session.ts      cookie signé HMAC, compte de la session
   guard.ts                  compte d'une page (+ renvoi vers /onboarding)
   db.ts                     connexion postgres.js (paresseuse)
@@ -158,18 +159,38 @@ ses durées connues, le « ~ » disparaît devant le temps d'écoute.
 
 ## Connexion Spotify
 
-En plus de Last.fm, un compte peut connecter Spotify (`/spotify`) pour voir ses
-tops en direct (`me/top/tracks`, `me/top/artists`, fenêtres 4 semaines / 6 mois
-/ plusieurs années) et sa lecture en cours. Contrairement à Last.fm, l'API
-Spotify ne donne ni l'historique complet ni d'agrégations sur mesure — ces
-stats restent donc à part, pas fusionnées avec les scrobbles Last.fm en base.
-Les jetons OAuth sont stockés côté serveur uniquement (`accounts.spotify_*`),
-rafraîchis automatiquement à l'expiration (`lib/spotify.ts`).
+Spotify est un second moyen de connexion, à part entière — pas juste un
+complément à Last.fm :
+
+- **Se connecter avec Spotify** (`/login`) crée un compte Sonar dont
+  l'identité EST Spotify, sans Last.fm associé. Fermé par défaut
+  (`ALLOW_ALL_USERS=1` requis, même logique que pour Last.fm) : sans ça, seule
+  la connexion à un compte déjà existant reste possible.
+- **Connecter Spotify** (`/spotify`, une fois déjà connecté via Last.fm) —
+  ajoute Spotify à un compte existant.
+
+Dans les deux cas, `/spotify` affiche les tops en direct (`me/top/tracks`,
+`me/top/artists`, fenêtres 4 semaines / 6 mois / plusieurs années) et la
+lecture en cours. Les jetons OAuth sont stockés côté serveur uniquement
+(`accounts.spotify_*`), rafraîchis automatiquement à l'expiration
+(`lib/spotify.ts`).
+
+**Archive complète, comme Last.fm** : l'API Spotify en direct ne donne ni
+l'historique complet ni des agrégations sur mesure (contrairement à Last.fm).
+Le seul moyen d'obtenir une vraie archive (jour/semaine/mois/année, pour
+toujours) est l'export RGPD Spotify (« historique de streaming étendu »,
+demandé sur spotify.com/account/privacy — jusqu'à ~30 jours de délai chez
+Spotify). `/spotify` propose d'importer les fichiers `.json` reçus
+(`lib/spotify-import.ts` parse les deux formats d'export existants, DANS le
+navigateur — jamais uploadés bruts) ; une fois importées avec `source =
+'spotify'`, ces écoutes rejoignent la même table `scrobbles` que Last.fm et
+profitent de **toute** l'infra d'agrégation SQL déjà en place (`lib/stats.ts`
+ne filtre pas par source) : `/day`, `/week`, `/month`, `/year`, `/all`,
+`/explorer`, `/compare` fonctionnent à l'identique, sans code spécifique à
+Spotify.
 
 ## Reste à faire (ordre du brief)
 
 Genres (`artist.getTopTags`, table `artist_tags` déjà prête) · import des
-exports RGPD Spotify/Apple via les colonnes `source` / `ms_played` / `skipped`
-(temps exact, titres skippés, ratio shuffle, lectures < 30 s) — ce que la
-connexion Spotify ci-dessus ne couvre pas, faute d'accès à l'historique complet
-côté API.
+exports Apple Music (même mécanique que l'import Spotify ci-dessus, format
+différent).
