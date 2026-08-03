@@ -21,6 +21,7 @@ export default async function TopBar({ current }: { current?: string }) {
     { href: "/explorer", label: "explorer", key: "explorer" },
     { href: `/compare`, label: "comparer", key: "compare" },
     { href: `/search`, label: "chercher", key: "search" },
+    { href: `/spotify`, label: "spotify", key: "spotify" },
   ];
 
   return (

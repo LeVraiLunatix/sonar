@@ -23,7 +23,14 @@ create table if not exists accounts (
   -- IDENTIFIANT : jamais renvoyé au client, lu côté serveur uniquement.
   lastfm_session_key text,
   -- profil consultable par les autres comptes du site (désactivable)
-  public_profile boolean not null default true
+  public_profile boolean not null default true,
+  -- ── connexion Spotify (optionnelle, stats live en plus de Last.fm) ──
+  -- jetons OAuth : jamais renvoyés au client, lus côté serveur uniquement.
+  spotify_access_token    text,
+  spotify_refresh_token   text,
+  spotify_token_expires_at timestamptz,
+  spotify_user_id         text,
+  spotify_display_name    text
 );
 
 create index if not exists accounts_public_idx on accounts (public_profile);

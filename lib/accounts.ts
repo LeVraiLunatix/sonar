@@ -134,3 +134,85 @@ export async function markSynced(username: string): Promise<void> {
     where username_key = ${username.toLowerCase()}
   `;
 }
+
+export type SpotifyTokens = {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+  spotifyUserId: string | null;
+  displayName: string | null;
+};
+
+/** Jetons Spotify du compte, ou null si non connecté. Lecture côté serveur uniquement. */
+export async function getSpotifyTokens(username: string): Promise<SpotifyTokens | null> {
+  const [row] = await sql<
+    {
+      spotify_access_token: string | null;
+      spotify_refresh_token: string | null;
+      spotify_token_expires_at: string | null;
+      spotify_user_id: string | null;
+      spotify_display_name: string | null;
+    }[]
+  >`
+    select spotify_access_token, spotify_refresh_token, spotify_token_expires_at,
+           spotify_user_id, spotify_display_name
+    from accounts where username_key = ${username.toLowerCase()}
+  `;
+  if (!row?.spotify_access_token || !row.spotify_refresh_token) return null;
+  return {
+    accessToken: row.spotify_access_token,
+    refreshToken: row.spotify_refresh_token,
+    expiresAt: row.spotify_token_expires_at ?? new Date(0).toISOString(),
+    spotifyUserId: row.spotify_user_id,
+    displayName: row.spotify_display_name,
+  };
+}
+
+/** Enregistre les jetons obtenus au callback OAuth (première connexion). */
+export async function setSpotifyTokens(
+  username: string,
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: string;
+    spotifyUserId: string;
+    displayName: string | null;
+  },
+): Promise<void> {
+  await sql`
+    update accounts set
+      spotify_access_token = ${tokens.accessToken},
+      spotify_refresh_token = ${tokens.refreshToken},
+      spotify_token_expires_at = ${tokens.expiresAt},
+      spotify_user_id = ${tokens.spotifyUserId},
+      spotify_display_name = ${tokens.displayName}
+    where username_key = ${username.toLowerCase()}
+  `;
+}
+
+/** Met à jour uniquement le jeton d'accès (rafraîchissement silencieux). */
+export async function updateSpotifyAccessToken(
+  username: string,
+  accessToken: string,
+  expiresAt: string,
+): Promise<void> {
+  await sql`
+    update accounts set
+      spotify_access_token = ${accessToken},
+      spotify_token_expires_at = ${expiresAt}
+    where username_key = ${username.toLowerCase()}
+  `;
+}
+
+/** Déconnecte Spotify (garde le compte Sonar/Last.fm intact). */
+export async function clearSpotifyTokens(username: string): Promise<void> {
+  await sql`
+    update accounts set
+      spotify_access_token = null,
+      spotify_refresh_token = null,
+      spotify_token_expires_at = null,
+      spotify_user_id = null,
+      spotify_display_name = null
+    where username_key = ${username.toLowerCase()}
+  `;
+}

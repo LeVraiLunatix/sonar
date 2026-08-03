@@ -88,12 +88,16 @@ app/
   api/sync/self/route.ts    sync opportuniste du compte de la session
   api/backfill/…            import initial piloté depuis le client
   api/auth/…                OAuth Last.fm (login, callback, logout)
+  api/spotify/…             OAuth Spotify (login, callback, disconnect)
+  spotify/page.tsx          tops Spotify (4 sem / 6 mois / toujours) + lecture en cours
   api/cron/sync/route.ts    endpoint appelé par Vercel Cron (tous les comptes)
 components/                 MiniPlayer, PeriodView, AmplitudeSpine, Clock, Heatmap,
                             SmoothScroll, Reveal, BigCount, AutoSync…
 lib/
   lastfm.ts                 client user.getRecentTracks (pièges section 5 gérés)
   lastfm-auth.ts            OAuth + signature md5 + track.love
+  spotify.ts                client Web API (tops, lecture en cours) + rafraîchissement de jeton
+  spotify-auth.ts           OAuth (authorization code flow)
   auth.ts / session.ts      cookie signé HMAC, compte de la session
   guard.ts                  compte d'une page (+ renvoi vers /onboarding)
   db.ts                     connexion postgres.js (paresseuse)
@@ -152,8 +156,20 @@ Le cron enrichit aussi quelques entrées à chaque passage, pour que les nouveau
 titres n'en restent pas à l'estimation de 3 min 30. Dès qu'une plage a toutes
 ses durées connues, le « ~ » disparaît devant le temps d'écoute.
 
+## Connexion Spotify
+
+En plus de Last.fm, un compte peut connecter Spotify (`/spotify`) pour voir ses
+tops en direct (`me/top/tracks`, `me/top/artists`, fenêtres 4 semaines / 6 mois
+/ plusieurs années) et sa lecture en cours. Contrairement à Last.fm, l'API
+Spotify ne donne ni l'historique complet ni d'agrégations sur mesure — ces
+stats restent donc à part, pas fusionnées avec les scrobbles Last.fm en base.
+Les jetons OAuth sont stockés côté serveur uniquement (`accounts.spotify_*`),
+rafraîchis automatiquement à l'expiration (`lib/spotify.ts`).
+
 ## Reste à faire (ordre du brief)
 
 Genres (`artist.getTopTags`, table `artist_tags` déjà prête) · import des
 exports RGPD Spotify/Apple via les colonnes `source` / `ms_played` / `skipped`
-(temps exact, titres skippés, ratio shuffle, lectures < 30 s).
+(temps exact, titres skippés, ratio shuffle, lectures < 30 s) — ce que la
+connexion Spotify ci-dessus ne couvre pas, faute d'accès à l'historique complet
+côté API.
