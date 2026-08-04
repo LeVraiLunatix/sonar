@@ -109,8 +109,9 @@ export default async function SpotifyPage({
               </a>
               , demande ton « historique de streaming étendu ». Spotify met
               jusqu’à environ 30 jours à préparer le fichier et te l’envoie par
-              e-mail (un lien de téléchargement, un dossier de fichiers
-              <code>.json</code>). Reviens ici une fois reçu.
+              e-mail un lien de téléchargement vers une archive{" "}
+              <code>.zip</code>. Reviens ici une fois reçue — pas besoin de la
+              décompresser, dépose-la telle quelle ci-dessous.
             </p>
             <div style={{ marginTop: "1rem" }}>
               <SpotifyImportRunner />

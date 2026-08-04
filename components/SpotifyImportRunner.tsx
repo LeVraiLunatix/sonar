@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { unzipSync } from "fflate";
 import { parseStreamingHistoryFile, type ParsedPlay } from "@/lib/spotify-import";
 
 const BATCH_SIZE = 1000;
+const ACCEPT = ".json,.zip,application/json,application/zip,application/x-zip-compressed";
 
 type State =
   | { status: "idle" }
@@ -13,10 +15,28 @@ type State =
   | { status: "error"; message: string; imported: number };
 
 /**
- * Import de l'export RGPD Spotify : chaque fichier .json est lu et parsé
- * DANS LE NAVIGATEUR (lib/spotify-import.ts), puis envoyé par lots normalisés
- * — jamais le fichier brut d'un coup, pour rester sous la limite de taille
- * d'une requête serverless quel que soit le nombre d'années d'historique.
+ * Fichiers .json à parser pour un fichier choisi. Spotify envoie l'export en
+ * .zip : on l'extrait DANS LE NAVIGATEUR (fflate) et on ne garde que les
+ * entrées .json — README, paiements, etc. sont ignorés (parseStreamingHistoryFile
+ * renvoie [] pour tout ce qui n'a pas la forme d'un historique d'écoute).
+ */
+async function jsonEntriesOf(file: File): Promise<{ name: string; text: string }[]> {
+  if (!file.name.toLowerCase().endsWith(".zip")) {
+    return [{ name: file.name, text: await file.text() }];
+  }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const entries = unzipSync(bytes, {
+    filter: (entry) => entry.name.toLowerCase().endsWith(".json"),
+  });
+  const decoder = new TextDecoder();
+  return Object.entries(entries).map(([name, data]) => ({ name, text: decoder.decode(data) }));
+}
+
+/**
+ * Import de l'export RGPD Spotify (.zip ou .json déjà extraits) : tout est lu
+ * et parsé DANS LE NAVIGATEUR (lib/spotify-import.ts), puis envoyé par lots
+ * normalisés — jamais un fichier brut d'un coup, pour rester sous la limite
+ * de taille d'une requête serverless quel que soit le nombre d'années.
  */
 export default function SpotifyImportRunner() {
   const router = useRouter();
@@ -44,18 +64,26 @@ export default function SpotifyImportRunner() {
 
     try {
       for (let i = 0; i < files.length; i++) {
-        const text = await files[i].text();
-        let raw: unknown;
+        let entries: { name: string; text: string }[];
         try {
-          raw = JSON.parse(text);
+          entries = await jsonEntriesOf(files[i]);
         } catch {
-          throw new Error(`${files[i].name} : JSON invalide`);
+          throw new Error(`${files[i].name} : archive illisible`);
         }
-        const plays = parseStreamingHistoryFile(raw);
-        for (let j = 0; j < plays.length; j += BATCH_SIZE) {
-          const batch = plays.slice(j, j + BATCH_SIZE);
-          imported += await sendBatch(batch);
-          setState({ status: "running", filesDone: i, filesTotal: files.length, imported });
+
+        for (const entry of entries) {
+          let raw: unknown;
+          try {
+            raw = JSON.parse(entry.text);
+          } catch {
+            continue; // fichier non pertinent dans l'export (pas un historique) : ignoré
+          }
+          const plays = parseStreamingHistoryFile(raw);
+          for (let j = 0; j < plays.length; j += BATCH_SIZE) {
+            const batch = plays.slice(j, j + BATCH_SIZE);
+            imported += await sendBatch(batch);
+            setState({ status: "running", filesDone: i, filesTotal: files.length, imported });
+          }
         }
         setState({ status: "running", filesDone: i + 1, filesTotal: files.length, imported });
       }
@@ -105,7 +133,7 @@ export default function SpotifyImportRunner() {
           réessayer
           <input
             type="file"
-            accept="application/json"
+            accept={ACCEPT}
             multiple
             onChange={(e) => handleFiles(e.target.files)}
             style={{ display: "none" }}
@@ -118,18 +146,19 @@ export default function SpotifyImportRunner() {
   return (
     <>
       <label className="btn btn--solid" style={{ cursor: "pointer" }}>
-        Choisir les fichiers .json
+        Choisir le fichier .zip (ou les .json)
         <input
           type="file"
-          accept="application/json"
+          accept={ACCEPT}
           multiple
           onChange={(e) => handleFiles(e.target.files)}
           style={{ display: "none" }}
         />
       </label>
       <p className="note" style={{ marginTop: "0.75rem" }}>
-        Sélectionne tous les fichiers <code>Streaming_History_Audio_*.json</code> (ou
-        l’ancien <code>StreamingHistory*.json</code>) reçus dans l’export Spotify.
+        Dépose directement le <code>.zip</code> reçu par e-mail — il est
+        décompressé dans ton navigateur, rien n’est envoyé tel quel. Tu peux
+        aussi sélectionner des fichiers <code>.json</code> déjà extraits.
       </p>
     </>
   );
