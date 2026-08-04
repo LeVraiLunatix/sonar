@@ -3,8 +3,13 @@ import TopBar from "@/components/TopBar";
 import Reveal from "@/components/Reveal";
 import SpotifyImportRunner from "@/components/SpotifyImportRunner";
 import { accountForPage } from "@/lib/guard";
-import { humanMs, nf } from "@/lib/format";
+import { humanMs, nf, frDate } from "@/lib/format";
 import type { TimeRange, SpotifyTrack, SpotifyArtist, NowPlaying } from "@/lib/spotify";
+import type {
+  SpotifyArchiveSummary,
+  SpotifyArtistCount,
+  SpotifyTrackCount,
+} from "@/lib/spotify-stats";
 
 export const metadata: Metadata = { title: "Spotify" };
 export const dynamic = "force-dynamic";
@@ -48,6 +53,23 @@ export default async function SpotifyPage({
   let tracks: SpotifyTrack[] = [];
   let artists: SpotifyArtist[] = [];
   let loadError: string | null = null;
+  let archive: SpotifyArchiveSummary | null = null;
+  let archiveArtists: SpotifyArtistCount[] = [];
+  let archiveTracks: SpotifyTrackCount[] = [];
+
+  if (account && process.env.DATABASE_URL) {
+    const { spotifyArchiveSummary, spotifyTopArtists, spotifyTopTracks } = await import(
+      "@/lib/spotify-stats"
+    );
+    const summary = await spotifyArchiveSummary(account);
+    if (summary.total > 0) {
+      archive = summary;
+      [archiveArtists, archiveTracks] = await Promise.all([
+        spotifyTopArtists(account, 15),
+        spotifyTopTracks(account, 15),
+      ]);
+    }
+  }
 
   if (account && process.env.DATABASE_URL) {
     const { getSpotifyTokens } = await import("@/lib/accounts");
@@ -117,6 +139,57 @@ export default async function SpotifyPage({
               <SpotifyImportRunner />
             </div>
           </Reveal>
+        )}
+
+        {archive && (
+          <>
+            <Reveal as="section" className="ann ann--head">
+              <p className="ann__label">ton archive Spotify — rien que Spotify</p>
+              <h2>{nf(archive.total)} écoutes importées</h2>
+              <p className="prose">
+                {archive.first && archive.last ? (
+                  <>
+                    du {frDate(archive.first)} au {frDate(archive.last)} ·{" "}
+                  </>
+                ) : null}
+                {humanMs(archive.totalMs)} d’écoute — temps exact, pas une
+                estimation : Spotify donne la durée réelle de chaque lecture.
+              </p>
+            </Reveal>
+
+            <Reveal as="section" className="ann">
+              <p className="ann__label">artistes · archive importée</p>
+              <ol className="ranks">
+                {archiveArtists.map((a, i) => (
+                  <li className="rank" key={a.key} style={{ gridTemplateColumns: "1.4em 1fr auto" }}>
+                    <span className="rank__n mono">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="rank__name">{a.name}</span>
+                    <span className="rank__val">{nf(a.count)}</span>
+                  </li>
+                ))}
+              </ol>
+            </Reveal>
+
+            <Reveal as="section" className="ann ann--wide">
+              <p className="ann__label">titres · archive importée</p>
+              <ol className="ranks">
+                {archiveTracks.map((t, i) => (
+                  <li
+                    className="rank"
+                    key={`${t.artist}-${t.track}-${i}`}
+                    style={{ gridTemplateColumns: "1.4em 1fr auto" }}
+                  >
+                    <span className="rank__n mono">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="rank__name">
+                      {t.track}
+                      <span className="note" style={{ marginLeft: "0.5rem" }}>{t.artist}</span>
+                    </span>
+                    <span className="rank__val">{nf(t.count)}</span>
+                  </li>
+                ))}
+              </ol>
+            </Reveal>
+          </>
         )}
 
         {!account && !process.env.DATABASE_URL ? null : !process.env.DATABASE_URL ? (

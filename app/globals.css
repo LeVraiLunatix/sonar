@@ -1265,7 +1265,9 @@ a {
   text-transform: uppercase;
   padding: 0.7em 0.95em;
   border: 1.5px solid var(--ink);
+  background: transparent;
   color: var(--ink);
+  font-family: inherit;
   transition: background 0.2s ease, color 0.2s ease;
 }
 .btn--ghost:hover {
