@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { exchangeCode } from "@/lib/spotify-auth";
 import { getProfile } from "@/lib/spotify";
 import { resolveAccount } from "@/lib/session";
@@ -8,19 +8,18 @@ export const dynamic = "force-dynamic";
 
 const STATE_COOKIE = "spotify_oauth_state";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const origin = url.origin;
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const errorParam = url.searchParams.get("error");
 
-  const cookieJar = req.headers.get("cookie") ?? "";
-  const rawCookie = cookieJar
-    .split(";")
-    .map((c) => c.trim())
-    .find((c) => c.startsWith(`${STATE_COOKIE}=`))
-    ?.slice(STATE_COOKIE.length + 1);
+  // req.cookies (et non req.headers.get("cookie")) : Next.js encode la valeur
+  // avec encodeURIComponent en l'écrivant (":" devient "%3A"), donc seule son
+  // propre lecteur la décode symétriquement — un split(":") sur l'en-tête brut
+  // ne trouve jamais le séparateur.
+  const rawCookie = req.cookies.get(STATE_COOKIE)?.value ?? null;
   const sep = rawCookie?.indexOf(":") ?? -1;
   const mode = sep > 0 ? (rawCookie!.slice(0, sep) as "connect" | "signin") : null;
   const expectedState = sep > 0 ? rawCookie!.slice(sep + 1) : null;
