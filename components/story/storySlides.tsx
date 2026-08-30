@@ -14,10 +14,12 @@ export default function StorySlide({
   slide,
   current,
   kind,
+  cardHref,
 }: {
   slide: RecapSlide;
   current: boolean;
   kind: RecapKind;
+  cardHref: string;
 }) {
   return (
     <div
@@ -25,7 +27,7 @@ export default function StorySlide({
       data-tone={slide.tone}
       aria-hidden={current ? undefined : true}
     >
-      <div className="story__inner">{body(slide, current, kind)}</div>
+      <div className="story__inner">{body(slide, current, kind, cardHref)}</div>
     </div>
   );
 }
@@ -34,19 +36,26 @@ function periodWord(kind: RecapKind): string {
   return kind === "week" ? "cette semaine" : kind === "month" ? "ce mois-ci" : "cette année";
 }
 
-function body(slide: RecapSlide, current: boolean, kind: RecapKind) {
+function body(slide: RecapSlide, current: boolean, kind: RecapKind, cardHref: string) {
   switch (slide.type) {
     case "intro":
       return (
         <>
           <p className="story__eyebrow story__reveal" style={rise(0)}>
-            {kind === "week" ? "rétro de la semaine" : kind === "month" ? "rétro du mois" : "rétro de l’année"}
+            {kind === "week"
+              ? "rétro de la semaine"
+              : kind === "month"
+                ? "rétro du mois"
+                : "rétro de l’année"}
           </p>
           <p className="story__display story__reveal" style={rise(1)}>
             {slide.label}
           </p>
           <p className="story__caption story__reveal" style={rise(2)}>
-            {nf(slide.scrobbles)} scrobbles à dérouler. Appuie pour avancer.
+            {nf(slide.scrobbles)} scrobbles à dérouler.
+          </p>
+          <p className="story__tip story__reveal" style={rise(3)}>
+            tape pour avancer · maintiens pour mettre en pause
           </p>
         </>
       );
@@ -91,7 +100,8 @@ function body(slide: RecapSlide, current: boolean, kind: RecapKind) {
             {nf(slide.count)} écoutes
             {slide.deltaPct != null && (
               <span className={`story__delta ${slide.deltaPct >= 0 ? "is-up" : "is-down"}`}>
-                {slide.deltaPct >= 0 ? "▲" : "▼"} {Math.abs(slide.deltaPct)} % vs période précédente
+                {slide.deltaPct >= 0 ? "▲" : "▼"} {Math.abs(slide.deltaPct)} % vs période
+                précédente
               </span>
             )}
           </p>
@@ -116,6 +126,23 @@ function body(slide: RecapSlide, current: boolean, kind: RecapKind) {
           <p className="story__caption story__reveal" style={rise(3)}>
             {nf(slide.count)} fois
           </p>
+        </>
+      );
+
+    case "genre":
+      return (
+        <>
+          <p className="story__eyebrow story__reveal" style={rise(0)}>
+            ton genre {periodWord(kind)}
+          </p>
+          <p className="story__display story__reveal" style={rise(1)}>
+            {slide.genre}
+          </p>
+          {slide.artist && (
+            <p className="story__caption story__reveal" style={rise(2)}>
+              surtout porté par {slide.artist}
+            </p>
+          )}
         </>
       );
 
@@ -217,7 +244,12 @@ function body(slide: RecapSlide, current: boolean, kind: RecapKind) {
       return (
         <>
           <p className="story__eyebrow story__reveal" style={rise(0)}>
-            {slide.kind === "week" ? "ta semaine" : slide.kind === "month" ? "ton mois" : "ton année"} · {slide.label}
+            {slide.kind === "week"
+              ? "ta semaine"
+              : slide.kind === "month"
+                ? "ton mois"
+                : "ton année"}{" "}
+            · {slide.label}
           </p>
           <dl className="story__recap">
             {slide.lines.map((l, i) => (
@@ -227,13 +259,22 @@ function body(slide: RecapSlide, current: boolean, kind: RecapKind) {
               </div>
             ))}
           </dl>
-          {(slide.topArtist || slide.topTrack) && (
+          {(slide.topArtist || slide.topTrack || slide.genre) && (
             <p className="story__caption story__reveal" style={rise(5)}>
               {slide.topArtist && <>en tête : {slide.topArtist}</>}
               {slide.topArtist && slide.topTrack && " · "}
               {slide.topTrack && <>en boucle : {slide.topTrack}</>}
+              {slide.genre && <> · {slide.genre}</>}
             </p>
           )}
+          <a
+            className="story__save story__reveal"
+            style={rise(6)}
+            href={cardHref}
+            download={`sonar-${slide.label}`.replace(/[^\w.-]+/g, "-").toLowerCase() + ".png"}
+          >
+            ↓ enregistrer la carte
+          </a>
         </>
       );
   }

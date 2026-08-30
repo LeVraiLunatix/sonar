@@ -3,33 +3,51 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Recap } from "@/lib/recap";
+import { mediaSubjects } from "@/lib/recap";
 import StorySlide from "./storySlides";
 
 /** durée d'une diapo en auto-défilement (ms) — un peu plus pour les listes */
 const BASE_MS = 5200;
 const LIST_MS = 6800;
+const VOL = 0.32;
+const FADE_MS = 650;
+
+type Media = { cover: string | null; preview: string | null };
 
 export default function StoryPlayer({
   recap,
   backHref,
+  cardHref,
 }: {
   recap: Recap;
   backHref: string;
+  cardHref: string;
 }) {
   const router = useRouter();
   const { slides } = recap;
 
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const [togglePaused, setTogglePaused] = useState(false);
+  const [holdActive, setHoldActive] = useState(false);
   const [auto, setAuto] = useState(true); // désactivé si prefers-reduced-motion
   const [soundOn, setSoundOn] = useState(true);
   const [soundReady, setSoundReady] = useState(false);
-  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [mediaMap, setMediaMap] = useState<Map<string, Media>>(new Map());
+  const [bg, setBg] = useState<{ a: string | null; b: string | null; showA: boolean }>({
+    a: null,
+    b: null,
+    showA: true,
+  });
 
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const paused = togglePaused || holdActive;
+
   const rootRef = useRef<HTMLDivElement>(null);
+  const audioA = useRef<HTMLAudioElement>(null);
+  const audioB = useRef<HTMLAudioElement>(null);
+  const audioIdx = useRef(0); // quel élément audio est "actif"
+  const playingUrl = useRef<string | null>(null);
   const holdTimer = useRef<number | null>(null);
-  const held = useRef(false);
+  const heldRef = useRef(false);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
   const slideMs = useMemo(() => {
@@ -37,9 +55,7 @@ export default function StoryPlayer({
     return s && s.type === "list" ? LIST_MS : BASE_MS;
   }, [slides, index]);
 
-  const close = useCallback(() => {
-    router.push(backHref);
-  }, [router, backHref]);
+  const close = useCallback(() => router.push(backHref), [router, backHref]);
 
   const go = useCallback(
     (delta: number) => {
@@ -56,7 +72,7 @@ export default function StoryPlayer({
     [slides.length, close],
   );
 
-  // ── réglages système : pas d'auto-défilement si l'utilisateur le refuse ──
+  // ── prefers-reduced-motion → plus d'auto-défilement ──
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const apply = () => setAuto(!mq.matches);
@@ -73,10 +89,12 @@ export default function StoryPlayer({
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
-      else if (e.key === "ArrowRight" || e.key === " ") {
+      else if (e.key === "ArrowRight") go(1);
+      else if (e.key === "ArrowLeft") go(-1);
+      else if (e.key === " ") {
         e.preventDefault();
-        go(1);
-      } else if (e.key === "ArrowLeft") go(-1);
+        setTogglePaused((p) => !p);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => {
@@ -85,76 +103,146 @@ export default function StoryPlayer({
     };
   }, [close, go]);
 
-  // ── musique de fond : extrait Deezer du titre n°1 ──
+  // ── résolution des pochettes + extraits, en une passe ──
   useEffect(() => {
-    const s = recap.soundtrack;
-    if (!s) return;
+    const subjects = mediaSubjects(recap);
+    if (subjects.length === 0) return;
     const ctrl = new AbortController();
     (async () => {
       try {
-        const res = await fetch(
-          `/api/recap/media?artist=${encodeURIComponent(s.artist)}&track=${encodeURIComponent(s.track)}`,
-          { signal: ctrl.signal },
-        );
-        const media = (await res.json()) as { preview: string | null; cover: string | null };
-        if (media.cover) setCoverUrl(media.cover);
-        const el = audioRef.current;
-        if (media.preview && el) {
-          el.src = media.preview;
-          el.loop = true;
-          el.volume = 0.32;
-          try {
-            await el.play();
-            setSoundReady(true);
-          } catch {
-            // autoplay bloqué : on attend un geste (bouton son)
-            setSoundOn(false);
-          }
-        }
+        const res = await fetch("/api/recap/media", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ items: subjects }),
+          signal: ctrl.signal,
+        });
+        const data = (await res.json()) as { results?: Record<string, Media> };
+        setMediaMap(new Map(Object.entries(data.results ?? {})));
       } catch {
-        /* pas de musique, tant pis */
+        /* pas de média : les diapos gardent leur teinte pleine */
       }
     })();
     return () => ctrl.abort();
-  }, [recap.soundtrack]);
+  }, [recap]);
 
-  // ── suit l'état lecture : pause de la story = pause du son ──
+  const currentMedia = (): Media | undefined => {
+    const key = slides[index]?.media?.key;
+    return key ? mediaMap.get(key) : undefined;
+  };
+
+  // ── pochette animée en fond : deux calques qui se croisent ──
   useEffect(() => {
-    const el = audioRef.current;
+    const cover = currentMedia()?.cover ?? null;
+    setBg((prev) => {
+      const shown = prev.showA ? prev.a : prev.b;
+      if (cover === shown) return prev;
+      return prev.showA
+        ? { a: prev.a, b: cover, showA: false }
+        : { a: cover, b: prev.b, showA: true };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, mediaMap]);
+
+  // ── musique : suit la diapo (crossfade entre deux <audio>) ──
+  const ramp = (el: HTMLAudioElement, to: number, ms: number, done?: () => void) => {
+    const from = el.volume;
+    const t0 = performance.now();
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      el.volume = Math.max(0, Math.min(1, to));
+      done?.();
+    };
+    const step = (t: number) => {
+      if (finished) return;
+      const p = Math.min(1, (t - t0) / ms);
+      el.volume = Math.max(0, Math.min(1, from + (to - from) * p));
+      if (p < 1) requestAnimationFrame(step);
+      else finish();
+    };
+    requestAnimationFrame(step);
+    // filet : si rAF est gelé (onglet caché), garantir l'état final
+    window.setTimeout(finish, ms + 90);
+  };
+
+  const crossfadeTo = useCallback(
+    (url: string) => {
+      const cur = (audioIdx.current === 0 ? audioA : audioB).current;
+      const nxt = (audioIdx.current === 0 ? audioB : audioA).current;
+      if (!nxt) return;
+      nxt.src = url;
+      nxt.loop = true;
+      nxt.volume = 0;
+      const target = soundOn && !paused ? VOL : 0;
+      nxt
+        .play()
+        .then(() => setSoundReady(true))
+        .catch(() => setSoundOn(false));
+      ramp(nxt, target, FADE_MS);
+      if (cur && !cur.paused) ramp(cur, 0, FADE_MS, () => cur.pause());
+      audioIdx.current = audioIdx.current === 0 ? 1 : 0;
+      playingUrl.current = url;
+    },
+    [soundOn, paused],
+  );
+
+  useEffect(() => {
+    if (mediaMap.size === 0) return;
+    const url = currentMedia()?.preview ?? null;
+    if (url && url !== playingUrl.current) crossfadeTo(url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, mediaMap, crossfadeTo]);
+
+  // ── pause / mute → volume de l'audio actif ──
+  useEffect(() => {
+    const el = (audioIdx.current === 0 ? audioA : audioB).current;
     if (!el || !el.src) return;
     if (paused || !soundOn) {
-      el.pause();
+      ramp(el, 0, 260, () => el.pause());
     } else {
-      el.play().then(() => setSoundReady(true)).catch(() => {});
+      el.play()
+        .then(() => setSoundReady(true))
+        .catch(() => {});
+      ramp(el, VOL, 260);
     }
-  }, [paused, soundOn, index]);
+  }, [paused, soundOn]);
 
   const toggleSound = () => {
     const next = !soundOn;
     setSoundOn(next);
-    const el = audioRef.current;
-    if (next && el && el.src) el.play().then(() => setSoundReady(true)).catch(() => {});
+    const el = (audioIdx.current === 0 ? audioA : audioB).current;
+    if (next && el && el.src && !paused) {
+      el.play()
+        .then(() => setSoundReady(true))
+        .catch(() => {});
+      ramp(el, VOL, 260);
+    }
   };
 
-  // ── gestes sur la scène : appui long = pause, tap = préc/suiv, glissé bas = fermer ──
+  // ── gestes : appui long = pause, tap = préc/suiv, glissé bas = fermer ──
   const onPointerDown = (e: React.PointerEvent) => {
     pointerStart.current = { x: e.clientX, y: e.clientY };
-    held.current = false;
+    heldRef.current = false;
     holdTimer.current = window.setTimeout(() => {
-      held.current = true;
-      setPaused(true);
-    }, 220);
+      heldRef.current = true;
+      setHoldActive(true);
+    }, 140);
+  };
+  const endHold = () => {
+    if (holdTimer.current) window.clearTimeout(holdTimer.current);
+    if (heldRef.current) {
+      heldRef.current = false;
+      setHoldActive(false);
+      return true;
+    }
+    return false;
   };
   const onPointerUp = (e: React.PointerEvent) => {
-    if (holdTimer.current) window.clearTimeout(holdTimer.current);
+    const wasHold = endHold();
     const start = pointerStart.current;
     pointerStart.current = null;
-
-    if (held.current) {
-      setPaused(false);
-      held.current = false;
-      return;
-    }
+    if (wasHold) return;
     if (start) {
       const dx = e.clientX - start.x;
       const dy = e.clientY - start.y;
@@ -162,40 +250,26 @@ export default function StoryPlayer({
         close();
         return;
       }
-      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
-        // glissé horizontal léger : on traite quand même comme un tap
-      }
     }
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = e.clientX - rect.left;
     go(x < rect.width * 0.32 ? -1 : 1);
   };
   const onPointerLeave = () => {
-    if (holdTimer.current) window.clearTimeout(holdTimer.current);
-    if (held.current) {
-      setPaused(false);
-      held.current = false;
-    }
+    endHold();
   };
 
   return (
     <div
-      className="story"
+      className={`story${paused ? " is-paused" : ""}`}
       ref={rootRef}
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label={`Rétro ${recap.label}`}
     >
-      {coverUrl && (
-        <div
-          className="story__bg"
-          style={{ backgroundImage: `url("${coverUrl}")` }}
-          aria-hidden="true"
-        />
-      )}
-
-      <audio ref={audioRef} preload="none" aria-hidden="true" />
+      <audio ref={audioA} preload="none" aria-hidden="true" />
+      <audio ref={audioB} preload="none" aria-hidden="true" />
 
       <div className="story__bars">
         {slides.map((_, i) => (
@@ -226,6 +300,14 @@ export default function StoryPlayer({
         </button>
         <span className="story__top-label">{recap.label}</span>
         <button
+          className="story__icon"
+          onClick={() => setTogglePaused((p) => !p)}
+          aria-label={togglePaused ? "Reprendre" : "Mettre en pause"}
+          aria-pressed={togglePaused}
+        >
+          {togglePaused ? "▶" : "⏸"}
+        </button>
+        <button
           className={`story__icon${soundOn && soundReady ? " is-on" : ""}`}
           onClick={toggleSound}
           aria-label={soundOn ? "Couper le son" : "Activer le son"}
@@ -241,9 +323,34 @@ export default function StoryPlayer({
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerLeave}
       >
+        {/* pochette animée, DANS la scène et avant les diapos : elle reste
+            derrière elles par simple ordre de peinture, sans jeu de z-index */}
+        <div
+          className={`story__bg${bg.showA ? " is-shown" : ""}`}
+          aria-hidden="true"
+          style={bg.a ? { backgroundImage: `url("${bg.a}")` } : undefined}
+        />
+        <div
+          className={`story__bg${!bg.showA ? " is-shown" : ""}`}
+          aria-hidden="true"
+          style={bg.b ? { backgroundImage: `url("${bg.b}")` } : undefined}
+        />
+
         {slides.map((slide, i) => (
-          <StorySlide key={i} slide={slide} current={i === index} kind={recap.kind} />
+          <StorySlide
+            key={i}
+            slide={slide}
+            current={i === index}
+            kind={recap.kind}
+            cardHref={cardHref}
+          />
         ))}
+
+        {paused && (
+          <div className="story__paused" aria-hidden="true">
+            <span>❙❙</span>
+          </div>
+        )}
       </div>
 
       <div className="story__foot">

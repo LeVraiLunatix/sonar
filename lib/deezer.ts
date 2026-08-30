@@ -139,3 +139,40 @@ export async function trackMedia(
   const first = json.data?.[0];
   return first ? pick(first) : { preview: null, cover: null };
 }
+
+/**
+ * Média d'un ARTISTE : sa photo (portrait, via `artistImage`) + l'extrait de son
+ * titre le plus populaire chez Deezer. Sert les diapos « artiste n°1 »,
+ * « découverte », « genre »… où la musique de fond doit être celle de l'artiste
+ * montré.
+ */
+export async function artistMedia(
+  artist: string,
+  signal?: AbortSignal,
+): Promise<TrackMedia> {
+  let preview: string | null = null;
+  let albumCover: string | null = null;
+  try {
+    const q = `artist:"${artist.replace(/"/g, "")}"`;
+    const url = `${API}/search?q=${encodeURIComponent(q)}&limit=12`;
+    const json = (await getJson(url, signal)) as {
+      data?: {
+        preview?: string;
+        artist?: { name?: string };
+        album?: { cover_big?: string; cover_xl?: string };
+      }[];
+    };
+    for (const hit of json.data ?? []) {
+      const okArtist = hit.artist?.name ? sameName(hit.artist.name, artist) : true;
+      if (!okArtist) continue;
+      if (!preview && hit.preview && hit.preview.length > 8) preview = hit.preview;
+      if (!albumCover) albumCover = hit.album?.cover_xl ?? hit.album?.cover_big ?? null;
+      if (preview && albumCover) break;
+    }
+  } catch {
+    /* pas d'extrait, on garde la photo */
+  }
+
+  const photo = await artistImage(artist, signal).catch(() => null);
+  return { preview, cover: photo ?? albumCover };
+}

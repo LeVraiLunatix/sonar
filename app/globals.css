@@ -2690,23 +2690,39 @@ a {
   background: var(--s-ink);
   color: var(--s-paper);
 }
+/* pochette animée en fond : deux calques qui se croisent en fondu, chacun en
+   lent zoom/pan (Ken Burns). Placés DANS .story__stage, avant les diapos : ils
+   restent derrière par ordre de peinture — pas de z-index, pas de blend-mode ni
+   will-change qui feraient « échapper » le calque au-dessus du contenu. */
 .story__bg {
   position: absolute;
-  inset: -8%;
-  background-size: cover;
-  background-position: center;
-  filter: blur(38px) saturate(0.7);
-  opacity: 0.28;
-  transform: scale(1.1);
-  pointer-events: none;
-}
-.story__bg::after {
-  content: "";
-  position: absolute;
   inset: 0;
-  background: var(--blue);
-  mix-blend-mode: screen;
-  opacity: 0.35;
+  background-repeat: no-repeat;
+  background-size: 122% 122%;
+  background-position: 50% 45%;
+  filter: blur(24px) saturate(0.8) brightness(0.6);
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+/* Ken Burns via background-size/position (PAS transform) : le calque reste en
+   ordre de peinture normal, derrière les diapos — un transform animé le
+   promeut en couche GPU qui repasse au-dessus du contenu sur certains moteurs. */
+.story__bg.is-shown {
+  opacity: 0.85;
+  animation: story-kenburns 30s ease-in-out infinite alternate;
+}
+.story.is-paused .story__bg {
+  animation-play-state: paused;
+}
+@keyframes story-kenburns {
+  from {
+    background-size: 118% 118%;
+    background-position: 40% 38%;
+  }
+  to {
+    background-size: 142% 142%;
+    background-position: 60% 62%;
+  }
 }
 
 /* barres de progression segmentées, style stories */
@@ -2805,26 +2821,51 @@ a {
   pointer-events: none;
   transition: opacity 0.35s ease;
   container-type: inline-size;
+  isolation: isolate;
 }
 .story__slide.is-current {
   opacity: 1;
   pointer-events: auto;
 }
+/* Diapos « paper » : opaques, typographiques, sans imagerie — elles respirent
+   entre les diapos colorées. Diapos ink/pink/blue : la pochette passe au premier
+   plan (fort), teintée à la couleur de la diapo + un dégradé sombre en bas pour
+   que le texte clair reste lisible. */
 .story__slide[data-tone="paper"] {
+  --s-tone: var(--s-paper);
   background: var(--s-paper);
   color: var(--s-ink);
 }
+.story__slide[data-tone="paper"]::before {
+  display: none;
+}
 .story__slide[data-tone="ink"] {
-  background: var(--s-ink);
-  color: var(--s-paper);
+  --s-tone: var(--s-ink);
+  color: #f4ecd8;
 }
 .story__slide[data-tone="pink"] {
-  background: var(--s-pink);
-  color: var(--s-ink);
+  --s-tone: var(--s-pink);
+  color: #fff;
 }
 .story__slide[data-tone="blue"] {
-  background: var(--s-blue);
-  color: var(--s-paper);
+  --s-tone: var(--s-blue);
+  color: #f4ecd8;
+}
+.story__slide::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, #0c0a08 34%, transparent) 0%,
+      color-mix(in srgb, #0c0a08 52%, transparent) 100%
+    ),
+    color-mix(in srgb, var(--s-tone) 50%, transparent);
+}
+.story__slide:not([data-tone="paper"]) .story__inner {
+  text-shadow: 0 2px 22px rgba(0, 0, 0, 0.4);
 }
 /* le grand chiffre suit la couleur de texte de la diapo ; le fantôme garde
    sa seconde encre (rose, ou bleu sur fond rose) */
@@ -2845,6 +2886,8 @@ a {
 }
 
 .story__inner {
+  position: relative;
+  z-index: 1;
   width: min(34rem, 100%);
   container-type: inline-size;
   display: grid;
@@ -3060,6 +3103,54 @@ a {
   mix-blend-mode: multiply;
 }
 
+/* petit mode d'emploi sur la 1re diapo */
+.story__tip {
+  margin: 0.6rem 0 0;
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+/* bouton « enregistrer la carte » sur la diapo finale */
+.story__save {
+  margin-top: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 1.1rem;
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--s-paper);
+  background: var(--s-ink);
+  border: 1.5px solid var(--s-ink);
+}
+.story__save:hover {
+  color: var(--s-ink);
+  background: transparent;
+}
+
+/* overlay pause */
+.story__paused {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, #000 30%, transparent);
+  pointer-events: none;
+}
+.story__paused span {
+  font-size: 3.2rem;
+  letter-spacing: 0.1em;
+  color: #fff;
+  opacity: 0.92;
+}
+
 /* entrées échelonnées des blocs d'une diapo */
 .story__reveal {
   opacity: 0;
@@ -3094,5 +3185,10 @@ a {
   .story__bar.is-active .story__bar-fill {
     animation: none;
     transform: scaleX(1);
+  }
+  .story__bg,
+  .story__bg.is-shown {
+    animation: none;
+    transition: none;
   }
 }

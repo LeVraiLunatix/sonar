@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getPeriodData } from "@/lib/period";
 import { yearRange } from "@/lib/dates";
 import { accountForPage } from "@/lib/guard";
-import { buildRecap, recapTitle } from "@/lib/recap";
+import { buildRecap, recapTitle, genreFor } from "@/lib/recap";
 import StoryPlayer from "@/components/story/StoryPlayer";
 
 export async function generateMetadata({
@@ -26,7 +26,14 @@ export default async function WrappedYearPage({
 
   const account = await accountForPage();
   const data = await getPeriodData(account, yearRange(year), "year");
-  const recap = buildRecap(data, "year");
+  const genre = await genreFor(data);
+  const recap = buildRecap(data, "year", { genre });
 
-  return <StoryPlayer recap={recap} backHref={`/year/${year}`} />;
+  return (
+    <StoryPlayer
+      recap={recap}
+      backHref={`/year/${year}`}
+      cardHref={`/wrapped/year/${year}/opengraph-image`}
+    />
+  );
 }

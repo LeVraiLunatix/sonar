@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getPeriodData } from "@/lib/period";
 import { weekRange } from "@/lib/dates";
 import { accountForPage } from "@/lib/guard";
-import { buildRecap, recapTitle } from "@/lib/recap";
+import { buildRecap, recapTitle, genreFor } from "@/lib/recap";
 import StoryPlayer from "@/components/story/StoryPlayer";
 
 export async function generateMetadata({
@@ -29,7 +29,14 @@ export default async function WrappedWeekPage({
 
   const account = await accountForPage();
   const data = await getPeriodData(account, weekRange(year, week), "week");
-  const recap = buildRecap(data, "week");
+  const genre = await genreFor(data);
+  const recap = buildRecap(data, "week", { genre });
 
-  return <StoryPlayer recap={recap} backHref={`/week/${year}/${week}`} />;
+  return (
+    <StoryPlayer
+      recap={recap}
+      backHref={`/week/${year}/${week}`}
+      cardHref={`/wrapped/week/${year}/${week}/opengraph-image`}
+    />
+  );
 }

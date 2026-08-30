@@ -1,33 +1,41 @@
 import { NextResponse } from "next/server";
-import { trackMedia } from "@/lib/deezer";
+import { trackMedia, artistMedia, type TrackMedia } from "@/lib/deezer";
 
 /**
- * Résout l'extrait audio (30 s) + la pochette d'un titre pour la musique de
- * fond des rétros. Appelé par le lecteur de story côté client, pour garder les
- * appels Deezer côté serveur et profiter du cache CDN.
+ * Résout, en un seul appel, la pochette + l'extrait audio (30 s) de chaque
+ * sujet d'une rétro (artiste ou titre). Le lecteur de story s'en sert pour la
+ * pochette animée en fond ET pour changer la musique selon la diapo affichée.
+ * Appels Deezer côté serveur → cache CDN, aucune clé.
  */
 export const runtime = "nodejs";
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const artist = searchParams.get("artist")?.trim();
-  const track = searchParams.get("track")?.trim();
+type Item = { key: string; artist: string; track?: string };
 
-  if (!artist || !track) {
-    return NextResponse.json(
-      { preview: null, cover: null },
-      { status: 400 },
-    );
-  }
+export async function POST(req: Request) {
+  const body = (await req.json().catch(() => null)) as { items?: Item[] } | null;
+  const items = (body?.items ?? [])
+    .filter((it) => it && typeof it.key === "string" && typeof it.artist === "string")
+    .slice(0, 16);
 
-  try {
-    const media = await trackMedia(artist, track);
-    return NextResponse.json(media, {
+  const entries = await Promise.all(
+    items.map(async (it): Promise<[string, TrackMedia]> => {
+      try {
+        const media = it.track
+          ? await trackMedia(it.artist, it.track)
+          : await artistMedia(it.artist);
+        return [it.key, media];
+      } catch {
+        return [it.key, { preview: null, cover: null }];
+      }
+    }),
+  );
+
+  return NextResponse.json(
+    { results: Object.fromEntries(entries) },
+    {
       headers: {
-        "cache-control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+        "cache-control": "private, max-age=3600, stale-while-revalidate=86400",
       },
-    });
-  } catch {
-    return NextResponse.json({ preview: null, cover: null });
-  }
+    },
+  );
 }

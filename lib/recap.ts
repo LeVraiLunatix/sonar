@@ -8,6 +8,10 @@ import { isoWeekOf, weekRange, addDays, parisToday } from "./dates";
  * /week /month /year, on assemble un jeu de diapos (story) que le lecteur
  * client (`components/story/StoryPlayer`) fait défiler. Rien ici ne touche la
  * base : `buildRecap` est une fonction pure sur `PeriodData`.
+ *
+ * Chaque diapo porte un `media` (un artiste ou un titre) : le lecteur en tire
+ * une pochette animée en fond ET l'extrait audio à jouer pendant la diapo — la
+ * musique suit donc ce qui est à l'écran.
  */
 
 export type RecapKind = "week" | "month" | "year";
@@ -15,7 +19,21 @@ export type RecapKind = "week" | "month" | "year";
 /** Teinte d'une diapo — miroir des rôles riso (voir app/globals.css). */
 export type Tone = "paper" | "ink" | "pink" | "blue";
 
-export type RecapSlide =
+/** Sujet dont on résout pochette + extrait (via /api/recap/media). */
+export type MediaSubject = { key: string; artist: string; track?: string };
+
+function artistSubject(name: string, key?: string): MediaSubject {
+  return { key: "a:" + (key ?? name.toLowerCase()), artist: name };
+}
+function trackSubject(artist: string, track: string): MediaSubject {
+  return {
+    key: "t:" + artist.toLowerCase() + "|" + track.toLowerCase(),
+    artist,
+    track,
+  };
+}
+
+type SlideBody =
   | { type: "intro"; tone: Tone; kind: RecapKind; label: string; scrobbles: number }
   | {
       type: "bignum";
@@ -36,13 +54,7 @@ export type RecapSlide =
       sharePct: number;
       caption: string;
     }
-  | {
-      type: "track";
-      tone: Tone;
-      track: string;
-      artist: string;
-      count: number;
-    }
+  | { type: "track"; tone: Tone; track: string; artist: string; count: number }
   | {
       type: "list";
       id: string;
@@ -50,13 +62,8 @@ export type RecapSlide =
       title: string;
       items: { name: string; sub?: string; value: number }[];
     }
-  | {
-      type: "clock";
-      tone: Tone;
-      hours: HourCount[];
-      peakHour: number;
-      caption: string;
-    }
+  | { type: "genre"; tone: Tone; genre: string; artist: string | null }
+  | { type: "clock"; tone: Tone; hours: HourCount[]; peakHour: number; caption: string }
   | {
       type: "ratio";
       tone: Tone;
@@ -75,15 +82,23 @@ export type RecapSlide =
       lines: { k: string; v: string }[];
       topArtist: string | null;
       topTrack: string | null;
+      genre: string | null;
     };
+
+export type RecapSlide = SlideBody & { media?: MediaSubject };
 
 export type Recap = {
   kind: RecapKind;
   label: string;
   slides: RecapSlide[];
-  /** titre à résoudre côté client pour la musique de fond (extrait Deezer) */
-  soundtrack: { artist: string; track: string } | null;
 };
+
+/** Sujets média uniques d'une rétro — à résoudre en une seule requête. */
+export function mediaSubjects(recap: Recap): MediaSubject[] {
+  const seen = new Map<string, MediaSubject>();
+  for (const s of recap.slides) if (s.media) seen.set(s.media.key, s.media);
+  return [...seen.values()];
+}
 
 function rangeDays(r: { start: string; end: string }): number {
   return Math.max(
@@ -100,8 +115,7 @@ function personality(data: PeriodData): { title: string; blurb: string } {
   const activeDays = data.perDay.filter((d) => d.count > 0).length;
   const top = data.topArtists[0];
   const topShare = s.scrobbles > 0 && top ? top.count / s.scrobbles : 0;
-  const peakHour =
-    [...data.perHour].sort((a, b) => b.count - a.count)[0]?.hour ?? 12;
+  const peakHour = [...data.perHour].sort((a, b) => b.count - a.count)[0]?.hour ?? 12;
   const fresh = data.insights?.fresh ?? 0;
   const repeat = data.insights?.repeat ?? 0;
   const freshPct = fresh + repeat > 0 ? fresh / (fresh + repeat) : 0;
@@ -122,10 +136,7 @@ function personality(data: PeriodData): { title: string; blurb: string } {
       blurb: "Plus d’une écoute sur deux est une première fois.",
     };
   if (activeDays / days >= 0.85)
-    return {
-      title: "L’assidu",
-      blurb: "Presque aucun jour sans musique.",
-    };
+    return { title: "L’assidu", blurb: "Presque aucun jour sans musique." };
   if (s.artists >= Math.max(20, s.scrobbles / 8))
     return {
       title: "L’éclectique",
@@ -137,12 +148,81 @@ function personality(data: PeriodData): { title: string; blurb: string } {
   };
 }
 
-/** Assemble la story d'une période. Saute les diapos qui n'ont pas de matière. */
-export function buildRecap(data: PeriodData, kind: RecapKind): Recap {
+/** Genres plausibles pour le mode démo (fixtures), faute d'appel Last.fm. */
+const FIXTURE_GENRES: Record<string, string> = {
+  alcest: "blackgaze",
+  slowdive: "shoegaze",
+  deafheaven: "blackgaze",
+  grouper: "ambient",
+  "boards of canada": "idm",
+  duster: "slowcore",
+  "have a nice life": "post-punk",
+  "sigur rós": "post-rock",
+  portishead: "trip-hop",
+  "godspeed you! black emperor": "post-rock",
+  "mount eerie": "folk",
+  "cocteau twins": "dream pop",
+  "explosions in the sky": "post-rock",
+  "julien baker": "indie",
+  "this will destroy you": "post-rock",
+  "the microphones": "lo-fi",
+};
+
+/** Filtre le bruit des tags Last.fm ; renvoie le premier vrai genre, minuscule. */
+export function pickGenre(names: string[]): string | null {
+  const noise =
+    /^(seen live|favou?rites?|favorito|my music|owned|beautiful|awesome|masterpiece|albums i own|spotify|19\d\d|20\d\d|\d{1,2})$/i;
+  for (const raw of names) {
+    const t = raw.trim();
+    if (t && t.length <= 24 && !noise.test(t)) return t.toLowerCase();
+  }
+  return null;
+}
+
+/** Genre dominant du premier artiste, via Last.fm si une clé est configurée. */
+export async function topGenre(artist: string | undefined | null): Promise<string | null> {
+  if (!artist || !process.env.LASTFM_API_KEY) return null;
+  try {
+    const { artistTopTags } = await import("./lastfm-recommendations");
+    const tags = await artistTopTags(artist);
+    return pickGenre(tags.map((t) => t.name));
+  } catch {
+    return null;
+  }
+}
+
+/** Genre du premier artiste : Last.fm si possible, sinon table démo (fixtures). */
+export async function genreFor(data: PeriodData): Promise<string | null> {
+  const viaLastfm = await topGenre(data.topArtists[0]?.name);
+  if (viaLastfm) return viaLastfm;
+  if (data.source === "fixtures") {
+    return FIXTURE_GENRES[data.topArtists[0]?.key ?? ""] ?? null;
+  }
+  return null;
+}
+
+/** Assemble la story d'une période. Saute les diapos sans matière. */
+export function buildRecap(
+  data: PeriodData,
+  kind: RecapKind,
+  opts?: { genre?: string | null },
+): Recap {
   const s = data.summary;
   const slides: RecapSlide[] = [];
   const activeDays = data.perDay.filter((d) => d.count > 0).length;
   const approx = s.durationsKnown !== s.scrobbles;
+
+  const top = data.topArtists[0];
+  const artistMedia = top ? artistSubject(top.name, top.key) : undefined;
+  const trackMedia = data.topTrack
+    ? trackSubject(data.topTrack.artist, data.topTrack.track)
+    : undefined;
+  const anyMedia = trackMedia ?? artistMedia;
+
+  let genre = opts?.genre ?? null;
+  if (!genre && data.source === "fixtures" && top) {
+    genre = FIXTURE_GENRES[top.key] ?? null;
+  }
 
   slides.push({
     type: "intro",
@@ -150,6 +230,7 @@ export function buildRecap(data: PeriodData, kind: RecapKind): Recap {
     kind,
     label: data.label,
     scrobbles: s.scrobbles,
+    media: anyMedia,
   });
 
   slides.push({
@@ -159,6 +240,7 @@ export function buildRecap(data: PeriodData, kind: RecapKind): Recap {
     value: s.scrobbles,
     unit: "scrobbles",
     caption: activeDays > 1 ? `sur ${activeDays} jours d’écoute` : "",
+    media: anyMedia,
   });
 
   const minutes = Math.round(s.estMs / 60_000);
@@ -170,10 +252,10 @@ export function buildRecap(data: PeriodData, kind: RecapKind): Recap {
       value: minutes,
       unit: approx ? "minutes (estimées)" : "minutes",
       caption: `${approx ? "≈ " : ""}${humanMs(s.estMs)} bout à bout`,
+      media: anyMedia,
     });
   }
 
-  const top = data.topArtists[0];
   if (top) {
     const prev = data.prevArtist[top.key] ?? 0;
     const deltaPct = prev > 0 ? Math.round(((top.count - prev) / prev) * 100) : null;
@@ -187,9 +269,8 @@ export function buildRecap(data: PeriodData, kind: RecapKind): Recap {
       deltaPct,
       sharePct,
       caption:
-        sharePct >= 15
-          ? `soit ${sharePct} % de toutes tes écoutes`
-          : "en tête, et de loin",
+        sharePct >= 15 ? `soit ${sharePct} % de toutes tes écoutes` : "en tête, et de loin",
+      media: artistMedia,
     });
   }
 
@@ -200,16 +281,28 @@ export function buildRecap(data: PeriodData, kind: RecapKind): Recap {
       tone: "paper",
       title: kind === "year" ? "ton année en 5 artistes" : "tes artistes",
       items: data.topArtists.slice(0, 5).map((a) => ({ name: a.name, value: a.count })),
+      media: artistMedia,
+    });
+  }
+
+  if (genre) {
+    slides.push({
+      type: "genre",
+      tone: "blue",
+      genre,
+      artist: top?.name ?? null,
+      media: artistMedia,
     });
   }
 
   if (data.topTrack) {
     slides.push({
       type: "track",
-      tone: "blue",
+      tone: "ink",
       track: data.topTrack.track,
       artist: data.topTrack.artist,
       count: data.topTrack.count,
+      media: trackMedia,
     });
   }
 
@@ -217,13 +310,14 @@ export function buildRecap(data: PeriodData, kind: RecapKind): Recap {
     slides.push({
       type: "list",
       id: "tracks",
-      tone: "ink",
+      tone: "blue",
       title: "les titres en boucle",
       items: data.topTracks.slice(0, 5).map((t) => ({
         name: t.track,
         sub: t.artist,
         value: t.count,
       })),
+      media: trackMedia,
     });
   }
 
@@ -231,22 +325,23 @@ export function buildRecap(data: PeriodData, kind: RecapKind): Recap {
     const d = data.discoveries[0];
     slides.push({
       type: "discovery",
-      tone: "paper",
+      tone: "pink",
       name: d.name,
       artistKey: d.key,
       count: d.count,
+      media: artistSubject(d.name, d.key),
     });
   }
 
   if (s.scrobbles > 0) {
-    const peakHour =
-      [...data.perHour].sort((a, b) => b.count - a.count)[0]?.hour ?? 12;
+    const peakHour = [...data.perHour].sort((a, b) => b.count - a.count)[0]?.hour ?? 12;
     slides.push({
       type: "clock",
       tone: "paper",
       hours: data.perHour,
       peakHour,
       caption: `ton heure de pointe : ${String(peakHour).padStart(2, "0")} h`,
+      media: anyMedia,
     });
   }
 
@@ -263,6 +358,7 @@ export function buildRecap(data: PeriodData, kind: RecapKind): Recap {
         freshPct >= 50
           ? "tu passes plus de temps à découvrir qu’à réécouter"
           : "les valeurs sûres l’emportent",
+      media: anyMedia,
     });
   }
 
@@ -275,11 +371,18 @@ export function buildRecap(data: PeriodData, kind: RecapKind): Recap {
       suffix: " j",
       unit: "jours d’affilée",
       caption: "sans jamais lâcher",
+      media: anyMedia,
     });
   }
 
   const p = personality(data);
-  slides.push({ type: "personality", tone: "ink", title: p.title, blurb: p.blurb });
+  slides.push({
+    type: "personality",
+    tone: "ink",
+    title: p.title,
+    blurb: p.blurb,
+    media: anyMedia,
+  });
 
   slides.push({
     type: "outro",
@@ -288,6 +391,8 @@ export function buildRecap(data: PeriodData, kind: RecapKind): Recap {
     label: data.label,
     topArtist: top?.name ?? null,
     topTrack: data.topTrack?.track ?? null,
+    genre,
+    media: anyMedia,
     lines: [
       { k: "scrobbles", v: s.scrobbles.toLocaleString("fr-FR") },
       { k: "artistes", v: s.artists.toLocaleString("fr-FR") },
@@ -296,14 +401,7 @@ export function buildRecap(data: PeriodData, kind: RecapKind): Recap {
     ],
   });
 
-  return {
-    kind,
-    label: data.label,
-    slides,
-    soundtrack: data.topTrack
-      ? { artist: data.topTrack.artist, track: data.topTrack.track }
-      : null,
-  };
+  return { kind, label: data.label, slides };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -312,21 +410,11 @@ export function buildRecap(data: PeriodData, kind: RecapKind): Recap {
 
 export type RecapRef = {
   kind: RecapKind;
-  /** clé stable pour la persistance « déjà vue » */
   id: string;
   href: string;
   label: string;
 };
 
-/**
- * Rétros de la période qui vient de se clore, à mettre en avant (bandeau
- * « ta rétro est prête »). N'importe quelle période reste consultable en
- * tapant l'URL — ceci ne pilote que la proposition automatique.
- *
- * - semaine : la semaine écoulée, toute la semaine suivante
- * - mois    : le mois écoulé, les 12 premiers jours du mois courant
- * - année   : l'année écoulée, du 20 décembre au 31 janvier
- */
 export function availableRecaps(today: string = parisToday()): RecapRef[] {
   const out: RecapRef[] = [];
   const t = new Date(today + "T12:00:00Z");
