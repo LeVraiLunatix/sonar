@@ -6,7 +6,18 @@ import { SESSION_COOKIE, readSession } from "./lib/auth";
 // /api/spotify/login|callback : nécessaires pour le "se connecter avec Spotify"
 // depuis /login, qui n'a par définition pas encore de session au moment de
 // l'appel. Le reste de /api/spotify (import, disconnect) reste protégé.
-const PUBLIC = ["/login", "/api/auth", "/api/spotify/login", "/api/spotify/callback", "/api/cron"];
+// /wrapped : public pour que les aperçus de partage (Open Graph) fonctionnent —
+// un crawler doit pouvoir lire la page ET son opengraph-image. Sans session,
+// la rétro et la carte affichent les données fictives (aucune donnée réelle
+// n'est exposée) ; connecté, ce sont les vraies stats.
+const PUBLIC = [
+  "/login",
+  "/api/auth",
+  "/api/spotify/login",
+  "/api/spotify/callback",
+  "/api/cron",
+  "/wrapped",
+];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
