@@ -180,6 +180,83 @@ function body(
         </>
       );
 
+    case "album":
+      return (
+        <>
+          <p className="story__eyebrow story__reveal" style={rise(0)}>
+            l’album que tu as le plus tourné
+          </p>
+          <p className="story__name story__reveal" style={rise(1)}>
+            {slide.album}
+          </p>
+          <p className="story__by story__reveal" style={rise(2)}>
+            {slide.artist}
+          </p>
+          <p className="story__caption story__reveal" style={rise(3)}>
+            {nf(slide.count)} écoutes
+          </p>
+        </>
+      );
+
+    case "equiv":
+      return (
+        <>
+          <p className="story__eyebrow story__reveal" style={rise(0)}>
+            mis bout à bout {periodWord(kind)}
+          </p>
+          <div className="story__huge story__reveal" style={rise(1)}>
+            {current ? (
+              <BigCount value={slide.days} suffix=" j" />
+            ) : (
+              <span className="big">
+                <span className="big__sizer">{nf(slide.days)} j</span>
+                <span className="big__ink">{nf(slide.days)} j</span>
+              </span>
+            )}
+          </div>
+          <p className="story__unit story__reveal" style={rise(2)}>
+            de musique non-stop
+          </p>
+          <p className="story__caption story__reveal" style={rise(3)}>
+            soit ≈ {nf(slide.albums)} albums enchaînés, {nf(slide.scrobbles)} titres sans
+            une pause.
+          </p>
+        </>
+      );
+
+    case "obsession":
+      return (
+        <>
+          <p className="story__eyebrow story__reveal" style={rise(0)}>
+            ton obsession {periodWord(kind)}
+          </p>
+          <p className="story__name story__reveal" style={rise(1)}>
+            {slide.name}
+          </p>
+          <p className="story__unit story__reveal" style={rise(2)}>
+            {Math.round(slide.concentration * 100)} % en une seule semaine
+          </p>
+          <p className="story__caption story__reveal" style={rise(3)}>
+            {nf(slide.peak)} de tes {nf(slide.total)} écoutes, concentrées d’un coup.
+          </p>
+        </>
+      );
+
+    case "loyal":
+      return (
+        <>
+          <p className="story__eyebrow story__reveal" style={rise(0)}>
+            resté·e toute l’année
+          </p>
+          <p className="story__name story__reveal" style={rise(1)}>
+            {slide.name}
+          </p>
+          <p className="story__caption story__reveal" style={rise(2)}>
+            présent·e {slide.months} mois sur 12 — {nf(slide.total)} écoutes en tout.
+          </p>
+        </>
+      );
+
     case "list":
       return (
         <>
@@ -293,12 +370,16 @@ function body(
               </div>
             ))}
           </dl>
-          {(slide.topArtist || slide.topTrack || slide.genre) && (
+          {slide.podium.length > 0 && (
             <p className="story__caption story__reveal" style={rise(5)}>
-              {slide.topArtist && <>en tête : {slide.topArtist}</>}
-              {slide.topArtist && slide.topTrack && " · "}
+              podium : {slide.podium.join(" · ")}
+            </p>
+          )}
+          {(slide.topTrack || slide.genre) && (
+            <p className="story__caption story__reveal" style={rise(5)}>
               {slide.topTrack && <>en boucle : {slide.topTrack}</>}
-              {slide.genre && <> · {slide.genre}</>}
+              {slide.topTrack && slide.genre && " · "}
+              {slide.genre && <>{slide.genre}</>}
             </p>
           )}
           <div className="story__actions story__reveal" style={rise(6)}>

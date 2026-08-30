@@ -2690,38 +2690,36 @@ a {
   background: var(--s-ink);
   color: var(--s-paper);
 }
-/* pochette animée en fond : deux calques qui se croisent en fondu, chacun en
-   lent zoom/pan (Ken Burns). Placés DANS .story__stage, avant les diapos : ils
-   restent derrière par ordre de peinture — pas de z-index, pas de blend-mode ni
-   will-change qui feraient « échapper » le calque au-dessus du contenu. */
+/* pochette animée en fond : deux calques qui se croisent en fondu.
+   `background-size: cover` = AUCUNE déformation quel que soit le ratio.
+   Le mouvement (pan lent + léger « souffle » d'opacité) se fait sans transform :
+   un transform animé promeut le calque en couche GPU qui repasse au-dessus du
+   contenu sur certains moteurs. z-index explicite + isolation sur .story__stage
+   en renfort. */
 .story__bg {
   position: absolute;
   inset: 0;
+  z-index: 0;
   background-repeat: no-repeat;
-  background-size: 122% 122%;
-  background-position: 50% 45%;
-  filter: blur(24px) saturate(0.8) brightness(0.6);
+  background-size: cover;
+  background-position: 50% 42%;
+  filter: blur(26px) saturate(0.8) brightness(0.58);
   opacity: 0;
   transition: opacity 0.9s ease;
 }
-/* Ken Burns via background-size/position (PAS transform) : le calque reste en
-   ordre de peinture normal, derrière les diapos — un transform animé le
-   promeut en couche GPU qui repasse au-dessus du contenu sur certains moteurs. */
 .story__bg.is-shown {
   opacity: 0.85;
-  animation: story-kenburns 30s ease-in-out infinite alternate;
+  animation: story-kenburns 32s ease-in-out infinite alternate;
 }
 .story.is-paused .story__bg {
   animation-play-state: paused;
 }
 @keyframes story-kenburns {
   from {
-    background-size: 118% 118%;
-    background-position: 40% 38%;
+    background-position: 42% 30%;
   }
   to {
-    background-size: 142% 142%;
-    background-position: 60% 62%;
+    background-position: 58% 70%;
   }
 }
 
@@ -2809,10 +2807,14 @@ a {
   flex: 1;
   overflow: hidden;
   touch-action: pan-y;
+  /* contexte d'empilement propre : le calque pochette (z-index:0, animé en
+     transform) reste sous les diapos (z-index:1) même s'il est promu en GPU */
+  isolation: isolate;
 }
 .story__slide {
   position: absolute;
   inset: 0;
+  z-index: 1;
   display: grid;
   place-items: center;
   padding: clamp(1.5rem, 6vw, 3.5rem);

@@ -63,6 +63,25 @@ type SlideBody =
       items: { name: string; sub?: string; value: number }[];
     }
   | { type: "genre"; tone: Tone; genre: string; artist: string | null }
+  | { type: "album"; tone: Tone; album: string; artist: string; count: number }
+  | {
+      type: "obsession";
+      tone: Tone;
+      name: string;
+      artistKey: string;
+      peak: number;
+      total: number;
+      concentration: number;
+    }
+  | {
+      type: "loyal";
+      tone: Tone;
+      name: string;
+      artistKey: string;
+      months: number;
+      total: number;
+    }
+  | { type: "equiv"; tone: Tone; days: number; albums: number; scrobbles: number }
   | { type: "clock"; tone: Tone; hours: HourCount[]; peakHour: number; caption: string }
   | {
       type: "ratio";
@@ -80,6 +99,7 @@ type SlideBody =
       kind: RecapKind;
       label: string;
       lines: { k: string; v: string }[];
+      podium: string[];
       topArtist: string | null;
       topTrack: string | null;
       genre: string | null;
@@ -211,6 +231,7 @@ export function buildRecap(
   const slides: RecapSlide[] = [];
   const activeDays = data.perDay.filter((d) => d.count > 0).length;
   const approx = s.durationsKnown !== s.scrobbles;
+  const deep = kind === "year"; // la rétro de l'année va plus loin
 
   const top = data.topArtists[0];
   const artistMedia = top ? artistSubject(top.name, top.key) : undefined;
@@ -218,6 +239,26 @@ export function buildRecap(
     ? trackSubject(data.topTrack.artist, data.topTrack.track)
     : undefined;
   const anyMedia = trackMedia ?? artistMedia;
+
+  // ── rotation musicale : on alterne titres et artistes du top pour ne pas
+  //    entendre le même morceau toute la rétro (le lecteur crossfade entre eux)
+  const pool: MediaSubject[] = [];
+  {
+    const seen = new Set<string>();
+    const tracks = data.topTracks.map((t) => trackSubject(t.artist, t.track));
+    const artists = data.topArtists.map((a) => artistSubject(a.name, a.key));
+    for (let i = 0; i < Math.max(tracks.length, artists.length); i++) {
+      for (const sub of [tracks[i], artists[i]]) {
+        if (sub && !seen.has(sub.key)) {
+          seen.add(sub.key);
+          pool.push(sub);
+        }
+      }
+    }
+  }
+  let mc = 0;
+  const rotate = (): MediaSubject | undefined =>
+    pool.length ? pool[mc++ % pool.length] : anyMedia;
 
   let genre = opts?.genre ?? null;
   if (!genre && data.source === "fixtures" && top) {
@@ -230,7 +271,7 @@ export function buildRecap(
     kind,
     label: data.label,
     scrobbles: s.scrobbles,
-    media: anyMedia,
+    media: rotate(),
   });
 
   slides.push({
@@ -240,7 +281,7 @@ export function buildRecap(
     value: s.scrobbles,
     unit: "scrobbles",
     caption: activeDays > 1 ? `sur ${activeDays} jours d’écoute` : "",
-    media: anyMedia,
+    media: rotate(),
   });
 
   const minutes = Math.round(s.estMs / 60_000);
@@ -252,7 +293,19 @@ export function buildRecap(
       value: minutes,
       unit: approx ? "minutes (estimées)" : "minutes",
       caption: `${approx ? "≈ " : ""}${humanMs(s.estMs)} bout à bout`,
-      media: anyMedia,
+      media: rotate(),
+    });
+  }
+
+  // ── équivalence rigolote (année) ──
+  if (deep && s.estMs > 0) {
+    slides.push({
+      type: "equiv",
+      tone: "pink",
+      days: Math.max(1, Math.round(s.estMs / 86_400_000)),
+      albums: Math.max(1, Math.round(s.estMs / (42 * 60_000))),
+      scrobbles: s.scrobbles,
+      media: rotate(),
     });
   }
 
@@ -281,7 +334,7 @@ export function buildRecap(
       tone: "paper",
       title: kind === "year" ? "ton année en 5 artistes" : "tes artistes",
       items: data.topArtists.slice(0, 5).map((a) => ({ name: a.name, value: a.count })),
-      media: artistMedia,
+      media: rotate(),
     });
   }
 
@@ -292,6 +345,19 @@ export function buildRecap(
       genre,
       artist: top?.name ?? null,
       media: artistMedia,
+    });
+  }
+
+  // ── album le plus écouté (mois + année) ──
+  if (data.topAlbums[0] && kind !== "week") {
+    const al = data.topAlbums[0];
+    slides.push({
+      type: "album",
+      tone: "ink",
+      album: al.album,
+      artist: al.artist,
+      count: al.count,
+      media: artistSubject(al.artist),
     });
   }
 
@@ -317,7 +383,22 @@ export function buildRecap(
         sub: t.artist,
         value: t.count,
       })),
-      media: trackMedia,
+      media: rotate(),
+    });
+  }
+
+  // ── obsession : concentré sur une semaine (année, long mois) ──
+  if (data.insights?.showObsessions && data.insights.obsessions[0]) {
+    const o = data.insights.obsessions[0];
+    slides.push({
+      type: "obsession",
+      tone: "pink",
+      name: o.name,
+      artistKey: o.key,
+      peak: o.peak,
+      total: o.total,
+      concentration: o.concentration,
+      media: artistSubject(o.name, o.key),
     });
   }
 
@@ -333,6 +414,20 @@ export function buildRecap(
     });
   }
 
+  // ── le·la fidèle : présent·e mois après mois (année) ──
+  if (data.insights?.showSpread && data.insights.loyal[0]) {
+    const l = data.insights.loyal[0];
+    slides.push({
+      type: "loyal",
+      tone: "blue",
+      name: l.name,
+      artistKey: l.key,
+      months: l.months,
+      total: l.total,
+      media: artistSubject(l.name, l.key),
+    });
+  }
+
   if (s.scrobbles > 0) {
     const peakHour = [...data.perHour].sort((a, b) => b.count - a.count)[0]?.hour ?? 12;
     slides.push({
@@ -341,7 +436,7 @@ export function buildRecap(
       hours: data.perHour,
       peakHour,
       caption: `ton heure de pointe : ${String(peakHour).padStart(2, "0")} h`,
-      media: anyMedia,
+      media: rotate(),
     });
   }
 
@@ -358,7 +453,7 @@ export function buildRecap(
         freshPct >= 50
           ? "tu passes plus de temps à découvrir qu’à réécouter"
           : "les valeurs sûres l’emportent",
-      media: anyMedia,
+      media: rotate(),
     });
   }
 
@@ -371,7 +466,7 @@ export function buildRecap(
       suffix: " j",
       unit: "jours d’affilée",
       caption: "sans jamais lâcher",
-      media: anyMedia,
+      media: rotate(),
     });
   }
 
@@ -381,7 +476,7 @@ export function buildRecap(
     tone: "ink",
     title: p.title,
     blurb: p.blurb,
-    media: anyMedia,
+    media: rotate(),
   });
 
   slides.push({
@@ -392,7 +487,8 @@ export function buildRecap(
     topArtist: top?.name ?? null,
     topTrack: data.topTrack?.track ?? null,
     genre,
-    media: anyMedia,
+    podium: data.topArtists.slice(0, 3).map((a) => a.name),
+    media: trackMedia ?? anyMedia,
     lines: [
       { k: "scrobbles", v: s.scrobbles.toLocaleString("fr-FR") },
       { k: "artistes", v: s.artists.toLocaleString("fr-FR") },

@@ -174,7 +174,10 @@ function pickTrack(hit: DzTrack): TrackMedia {
 }
 
 /**
- * Média d'un ARTISTE : sa photo + l'extrait d'un de ses titres phares.
+ * Média d'un ARTISTE : sa photo + l'extrait d'UN de ses titres phares, tiré au
+ * hasard parmi les mieux classés (pas toujours le n°1 — sinon on entend le même
+ * morceau à chaque diapo / chaque ouverture de rétro).
+ *
  * On passe par l'id Deezer de l'artiste puis `/artist/{id}/top` : le résultat
  * est GARANTI du bon artiste (contrairement à `/search` qui mélange les
  * homonymes et les collaborations). Artiste introuvable → média vide, jamais
@@ -187,22 +190,23 @@ export async function artistMedia(
   const found = await findArtist(primaryArtist(artist), signal);
   if (!found) return { preview: null, cover: null };
 
-  let preview: string | null = null;
-  let albumCover: string | null = null;
+  let picked: DzTrack | null = null;
   try {
-    const url = `${API}/artist/${found.id}/top?limit=12`;
+    const url = `${API}/artist/${found.id}/top?limit=25`;
     const json = (await getJson(url, signal)) as { data?: DzTrack[] };
-    for (const t of json.data ?? []) {
-      if (!preview && t.preview && t.preview.length > 8) preview = t.preview;
-      if (!albumCover)
-        albumCover = t.album?.cover_xl ?? t.album?.cover_big ?? t.album?.cover_medium ?? null;
-      if (preview && albumCover) break;
+    const playable = (json.data ?? []).filter((t) => t.preview && t.preview.length > 8);
+    if (playable.length > 0) {
+      // fenêtre = top 12 (ou moins), tirage uniforme dedans
+      const window = playable.slice(0, Math.min(12, playable.length));
+      picked = window[Math.floor(Math.random() * window.length)];
     }
   } catch {
     /* on garde au moins la photo */
   }
 
-  return { preview, cover: found.picture ?? albumCover };
+  const albumCover =
+    picked?.album?.cover_xl ?? picked?.album?.cover_big ?? picked?.album?.cover_medium ?? null;
+  return { preview: picked?.preview ?? null, cover: found.picture ?? albumCover };
 }
 
 /**
