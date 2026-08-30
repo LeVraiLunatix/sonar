@@ -4,20 +4,25 @@ import { monthRange } from "@/lib/dates";
 import { resolveAccount } from "@/lib/session";
 import { buildCard } from "@/lib/card";
 import { genreFor } from "@/lib/recap";
+import { verifyShare } from "@/lib/share";
 import { recapCardImage } from "@/components/recapCardImage";
 
 export const runtime = "nodejs";
-export const contentType = "image/png";
-export const size = { width: 1080, height: 1350 };
-export const alt = "Rétro Sonar du mois";
 
-export default async function Image({
-  params,
-}: {
-  params: Promise<{ year: string; month: string }>;
-}) {
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ year: string; month: string }> },
+) {
   const { year, month } = await params;
-  const account = await resolveAccount().catch(() => null);
+  const s = new URL(req.url).searchParams.get("s");
+  const secret = process.env.AUTH_SECRET;
+
+  const shared = secret ? await verifyShare(s, secret) : null;
+  const account =
+    (shared && shared.kind === "month" && shared.periodId === `${year}-${month}`
+      ? shared.account
+      : null) ?? (await resolveAccount().catch(() => null));
+
   const data = await getPeriodData(
     account,
     monthRange(Number(year), Number(month)),
@@ -26,10 +31,5 @@ export default async function Image({
   const genre = await genreFor(data);
   const card = buildCard(data, "month", genre);
 
-  return new ImageResponse(recapCardImage(card), {
-    ...size,
-    headers: {
-      "content-disposition": `attachment; filename="sonar-${year}-${month}.png"`,
-    },
-  });
+  return new ImageResponse(recapCardImage(card), { width: 1080, height: 1350 });
 }

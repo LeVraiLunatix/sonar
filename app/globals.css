@@ -3113,9 +3113,16 @@ a {
   opacity: 0.55;
 }
 
-/* bouton « enregistrer la carte » sur la diapo finale */
-.story__save {
-  margin-top: 1.1rem;
+/* actions de la diapo finale : enregistrer la carte + copier le lien */
+.story__actions {
+  margin-top: 1.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+}
+.story__save,
+.story__share {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -3125,6 +3132,10 @@ a {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   text-decoration: none;
+  cursor: pointer;
+  line-height: 1;
+}
+.story__save {
   color: var(--s-paper);
   background: var(--s-ink);
   border: 1.5px solid var(--s-ink);
@@ -3132,6 +3143,16 @@ a {
 .story__save:hover {
   color: var(--s-ink);
   background: transparent;
+}
+.story__share {
+  color: currentColor;
+  background: transparent;
+  border: 1.5px solid currentColor;
+}
+.story__share:hover {
+  color: var(--s-paper);
+  background: var(--s-ink);
+  border-color: var(--s-ink);
 }
 
 /* overlay pause */

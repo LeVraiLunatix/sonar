@@ -18,10 +18,12 @@ export default function StoryPlayer({
   recap,
   backHref,
   cardHref,
+  sharePath,
 }: {
   recap: Recap;
   backHref: string;
   cardHref: string;
+  sharePath: string;
 }) {
   const router = useRouter();
   const { slides } = recap;
@@ -343,6 +345,7 @@ export default function StoryPlayer({
             current={i === index}
             kind={recap.kind}
             cardHref={cardHref}
+            sharePath={sharePath}
           />
         ))}
 

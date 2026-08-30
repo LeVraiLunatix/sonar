@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Clock from "@/components/Clock";
 import BigCount from "@/components/BigCount";
 import { nf } from "@/lib/format";
@@ -15,11 +16,13 @@ export default function StorySlide({
   current,
   kind,
   cardHref,
+  sharePath,
 }: {
   slide: RecapSlide;
   current: boolean;
   kind: RecapKind;
   cardHref: string;
+  sharePath: string;
 }) {
   return (
     <div
@@ -27,8 +30,33 @@ export default function StorySlide({
       data-tone={slide.tone}
       aria-hidden={current ? undefined : true}
     >
-      <div className="story__inner">{body(slide, current, kind, cardHref)}</div>
+      <div className="story__inner">{body(slide, current, kind, cardHref, sharePath)}</div>
     </div>
+  );
+}
+
+/** Copie le lien de partage (URL absolue) dans le presse-papier. */
+function ShareLinkButton({ path }: { path: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      className="story__share story__reveal"
+      style={rise(7)}
+      onClick={async () => {
+        const url =
+          typeof window !== "undefined" ? window.location.origin + path : path;
+        try {
+          await navigator.clipboard.writeText(url);
+        } catch {
+          window.prompt("Copie ce lien :", url);
+        }
+        setDone(true);
+        window.setTimeout(() => setDone(false), 2200);
+      }}
+    >
+      {done ? "lien copié ✓" : "⧉ copier le lien de partage"}
+    </button>
   );
 }
 
@@ -36,7 +64,13 @@ function periodWord(kind: RecapKind): string {
   return kind === "week" ? "cette semaine" : kind === "month" ? "ce mois-ci" : "cette année";
 }
 
-function body(slide: RecapSlide, current: boolean, kind: RecapKind, cardHref: string) {
+function body(
+  slide: RecapSlide,
+  current: boolean,
+  kind: RecapKind,
+  cardHref: string,
+  sharePath: string,
+) {
   switch (slide.type) {
     case "intro":
       return (
@@ -267,14 +301,18 @@ function body(slide: RecapSlide, current: boolean, kind: RecapKind, cardHref: st
               {slide.genre && <> · {slide.genre}</>}
             </p>
           )}
-          <a
-            className="story__save story__reveal"
-            style={rise(6)}
-            href={cardHref}
-            download={`sonar-${slide.label}`.replace(/[^\w.-]+/g, "-").toLowerCase() + ".png"}
-          >
-            ↓ enregistrer la carte
-          </a>
+          <div className="story__actions story__reveal" style={rise(6)}>
+            <a
+              className="story__save"
+              href={cardHref}
+              download={
+                `sonar-${slide.label}`.replace(/[^\w.-]+/g, "-").toLowerCase() + ".png"
+              }
+            >
+              ↓ enregistrer la carte
+            </a>
+            <ShareLinkButton path={sharePath} />
+          </div>
         </>
       );
   }

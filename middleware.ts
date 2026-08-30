@@ -17,6 +17,10 @@ const PUBLIC = [
   "/api/spotify/callback",
   "/api/cron",
   "/wrapped",
+  // /api/recap/media ne renvoie que des données publiques Deezer (pochette +
+  // extrait) : nécessaire pour qu'un lien de rétro partagé (sans session) ait
+  // aussi son fond animé et sa musique.
+  "/api/recap",
 ];
 
 export async function middleware(req: NextRequest) {
