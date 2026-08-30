@@ -3,7 +3,11 @@ import type { RecapCard } from "@/lib/card";
 /**
  * Carte-résumé façon « Wrapped » rendue en image par `next/og` (Satori).
  * Contraintes Satori : tout conteneur multi-enfants doit être `display:flex`,
- * pas de `gap` hérité, on ne compte que sur des couleurs littérales.
+ * pas de `gap` hérité, couleurs littérales. Les polices sont celles du site,
+ * injectées via l'option `fonts` de `ImageResponse` (voir `lib/cardFonts.ts`) :
+ *  - Bricolage Grotesque : titres / grands mots
+ *  - Departure Mono : chiffres
+ *  - Newsreader : texte courant
  */
 const PAPER = "#ede4cb";
 const INK = "#1c1a17";
@@ -11,14 +15,23 @@ const PINK = "#ff4fa3";
 const BLUE = "#2e4fd6";
 const GRAY = "#7c7768";
 
-const mono =
-  '"Departure Mono", ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", monospace';
+const DISPLAY = '"Bricolage Grotesque", system-ui, sans-serif';
+const MONO = '"Departure Mono", ui-monospace, "Cascadia Mono", monospace';
+const TEXT = '"Newsreader", Georgia, serif';
 
 function Metric({ v, k }: { v: string; k: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", marginRight: 56 }}>
-      <div style={{ fontSize: 60, color: BLUE, fontFamily: mono }}>{v}</div>
-      <div style={{ fontSize: 22, color: GRAY, letterSpacing: 2, marginTop: 6 }}>
+      <div style={{ fontSize: 58, color: BLUE, fontFamily: MONO }}>{v}</div>
+      <div
+        style={{
+          fontSize: 20,
+          color: GRAY,
+          letterSpacing: 3,
+          marginTop: 8,
+          fontFamily: MONO,
+        }}
+      >
         {k.toUpperCase()}
       </div>
     </div>
@@ -28,8 +41,18 @@ function Metric({ v, k }: { v: string; k: string }) {
 function Field({ k, v }: { k: string; v: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", marginBottom: 30 }}>
-      <div style={{ fontSize: 22, color: GRAY, letterSpacing: 3 }}>{k}</div>
-      <div style={{ fontSize: 46, color: INK, fontWeight: 700, marginTop: 4 }}>{v}</div>
+      <div style={{ fontSize: 20, color: GRAY, letterSpacing: 3, fontFamily: MONO }}>{k}</div>
+      <div
+        style={{
+          fontSize: 46,
+          color: INK,
+          fontWeight: 700,
+          fontFamily: DISPLAY,
+          marginTop: 6,
+        }}
+      >
+        {v}
+      </div>
     </div>
   );
 }
@@ -45,13 +68,23 @@ export function recapCardImage(c: RecapCard) {
         justifyContent: "space-between",
         background: PAPER,
         padding: 80,
-        fontFamily: '"Newsreader", Georgia, serif',
+        fontFamily: TEXT,
         color: INK,
       }}
     >
       <div style={{ display: "flex", flexDirection: "column" }}>
-        <div style={{ fontSize: 26, letterSpacing: 6, color: GRAY }}>{c.heading}</div>
-        <div style={{ fontSize: 130, fontWeight: 800, letterSpacing: -4, marginTop: 4 }}>
+        <div style={{ fontSize: 24, letterSpacing: 8, color: GRAY, fontFamily: MONO }}>
+          {c.heading}
+        </div>
+        <div
+          style={{
+            fontSize: 128,
+            fontWeight: 800,
+            letterSpacing: -5,
+            marginTop: 6,
+            fontFamily: DISPLAY,
+          }}
+        >
           {c.label}
         </div>
       </div>
@@ -63,15 +96,24 @@ export function recapCardImage(c: RecapCard) {
             left: 7,
             top: 9,
             fontSize: 190,
-            fontFamily: mono,
+            fontFamily: MONO,
             color: PINK,
           }}
         >
           {c.scrobbles}
         </div>
-        <div style={{ fontSize: 190, fontFamily: mono, color: INK }}>{c.scrobbles}</div>
+        <div style={{ fontSize: 190, fontFamily: MONO, color: INK }}>{c.scrobbles}</div>
       </div>
-      <div style={{ display: "flex", fontSize: 30, color: GRAY, letterSpacing: 3, marginTop: -6 }}>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 28,
+          color: GRAY,
+          letterSpacing: 4,
+          marginTop: -4,
+          fontFamily: MONO,
+        }}
+      >
         SCROBBLES
       </div>
 
@@ -91,15 +133,16 @@ export function recapCardImage(c: RecapCard) {
         style={{
           display: "flex",
           justifyContent: "space-between",
-          fontSize: 24,
+          fontSize: 22,
           color: GRAY,
-          letterSpacing: 3,
+          letterSpacing: 4,
           borderTop: `2px solid ${INK}`,
           paddingTop: 20,
+          fontFamily: MONO,
         }}
       >
         <div style={{ display: "flex" }}>SONAR</div>
-        <div style={{ display: "flex" }}>{c.listen} d’écoute</div>
+        <div style={{ display: "flex" }}>{c.listen} D’ÉCOUTE</div>
       </div>
     </div>
   );

@@ -64,14 +64,13 @@ export default function StoryPlayer({
       setIndex((i) => {
         const ni = i + delta;
         if (ni < 0) return 0;
-        if (ni >= slides.length) {
-          close();
-          return i;
-        }
+        // Arrivé au bout : on RESTE sur la dernière diapo. C'est l'utilisateur
+        // qui ferme (✕ / Échap / glissé bas), quand il veut.
+        if (ni >= slides.length) return slides.length - 1;
         return ni;
       });
     },
-    [slides.length, close],
+    [slides.length],
   );
 
   // ── prefers-reduced-motion → plus d'auto-défilement ──
@@ -362,7 +361,7 @@ export default function StoryPlayer({
         </button>
         <p className="story__hint" aria-live="polite">
           {index + 1} / {slides.length}
-          {paused ? " · pause" : ""}
+          {index === slides.length - 1 ? " · fin" : paused ? " · pause" : ""}
         </p>
         <button className="story__step" onClick={() => go(1)} aria-label="Diapo suivante">
           ›

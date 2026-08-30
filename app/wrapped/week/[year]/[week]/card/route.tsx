@@ -6,6 +6,7 @@ import { buildCard } from "@/lib/card";
 import { genreFor } from "@/lib/recap";
 import { verifyShare } from "@/lib/share";
 import { recapCardImage } from "@/components/recapCardImage";
+import { cardFonts } from "@/lib/cardFonts";
 
 export const runtime = "nodejs";
 
@@ -27,5 +28,9 @@ export async function GET(
   const genre = await genreFor(data);
   const card = buildCard(data, "week", genre);
 
-  return new ImageResponse(recapCardImage(card), { width: 1080, height: 1350 });
+  return new ImageResponse(recapCardImage(card), {
+    width: 1080,
+    height: 1350,
+    fonts: await cardFonts(),
+  });
 }

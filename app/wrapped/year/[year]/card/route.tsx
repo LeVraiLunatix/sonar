@@ -6,6 +6,7 @@ import { buildCard } from "@/lib/card";
 import { genreFor } from "@/lib/recap";
 import { verifyShare } from "@/lib/share";
 import { recapCardImage } from "@/components/recapCardImage";
+import { cardFonts } from "@/lib/cardFonts";
 
 /**
  * Carte-résumé PNG (1080×1350). Sert l'aperçu Open Graph ET le téléchargement.
@@ -34,5 +35,9 @@ export async function GET(
   const genre = await genreFor(data);
   const card = buildCard(data, "year", genre);
 
-  return new ImageResponse(recapCardImage(card), { width: 1080, height: 1350 });
+  return new ImageResponse(recapCardImage(card), {
+    width: 1080,
+    height: 1350,
+    fonts: await cardFonts(),
+  });
 }
