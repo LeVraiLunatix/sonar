@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { PeriodData } from "@/lib/period";
-import { parisToday } from "@/lib/dates";
+import { parisToday, isoWeekOf } from "@/lib/dates";
 import { nf, humanMs } from "@/lib/format";
 import AmplitudeSpine from "./AmplitudeSpine";
 import CompareRanks from "./CompareRanks";
@@ -56,6 +56,17 @@ export default function PeriodView({
   const includesToday = data.range.start <= today && data.range.end > today;
   const todayInitial = perDay.find((day) => day.day === today)?.count ?? 0;
 
+  let wrappedHref: string | null = null;
+  if (kind === "year") {
+    wrappedHref = `/wrapped/year/${data.range.start.slice(0, 4)}`;
+  } else if (kind === "month") {
+    const [wy, wm] = data.range.start.split("-").map(Number);
+    wrappedHref = `/wrapped/month/${wy}/${wm}`;
+  } else if (kind === "week") {
+    const w = isoWeekOf(data.range.start);
+    wrappedHref = `/wrapped/week/${w.year}/${w.week}`;
+  }
+
   return (
     <main className={withSpine ? "year" : "year year--nospine"}>
       {withSpine && <AmplitudeSpine days={perDay} />}
@@ -82,6 +93,13 @@ export default function PeriodView({
             <span className="big__unit">scrobbles</span>
             {activeDays > 1 ? `, sur ${activeDays} jours d’écoute.` : "."}
           </p>
+          {wrappedHref && summary.scrobbles > 0 && (
+            <p style={{ marginTop: "1.1rem" }}>
+              <Link href={wrappedHref} className="wrap-cta">
+                ▶ dérouler la rétro animée
+              </Link>
+            </p>
+          )}
         </Reveal>
 
         {/* ── briques de chiffres ── */}

@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { nf } from "@/lib/format";
 
 /**
  * Grand chiffre en deux encres. Les DEUX couches (fantôme rose et encre)
  * affichent la même valeur à chaque image — sinon le décalage de calage
  * montre des chiffres différents pendant que le compteur monte.
+ *
+ * Un troisième calque invisible (.big__sizer) porte la valeur FINALE : il fixe
+ * la largeur de la boîte (pas de saut de layout pendant la montée) et sert de
+ * gabarit pour la mise à l'échelle anti-débordement — si le chiffre serait plus
+ * large que son conteneur, on applique un scale() plutôt que de le laisser sortir.
  */
 export default function BigCount({
   value,
@@ -18,7 +23,9 @@ export default function BigCount({
   duration?: number;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
+  const sizerRef = useRef<HTMLSpanElement>(null);
   const [n, setN] = useState(value);
+  const [fit, setFit] = useState(1);
   const nRef = useRef(value);
   const started = useRef(false);
 
@@ -89,10 +96,48 @@ export default function BigCount({
     };
   }, [value, duration]);
 
+  // Anti-débordement : mesure le gabarit (valeur finale) contre la largeur utile
+  // du parent, applique un facteur d'échelle si besoin. Le cqi CSS gère le cas
+  // courant ; ceci couvre les grands nombres et les conteneurs sans contexte cqi.
+  useLayoutEffect(() => {
+    const big = ref.current;
+    const sizer = sizerRef.current;
+    const parent = big?.parentElement;
+    if (!big || !sizer || !parent) return;
+
+    const measure = () => {
+      const cs = getComputedStyle(parent);
+      const pad =
+        parseFloat(cs.paddingLeft || "0") + parseFloat(cs.paddingRight || "0");
+      const avail = parent.clientWidth - pad;
+      const natural = sizer.offsetWidth;
+      if (natural > 0 && avail > 0) {
+        setFit(Math.min(1, Math.round((avail / natural) * 1000) / 1000));
+      }
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(parent);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [value, suffix]);
+
   const text = nf(n) + suffix;
+  const finalText = nf(value) + suffix;
 
   return (
-    <span className="big" ref={ref}>
+    <span
+      className="big"
+      ref={ref}
+      style={fit < 1 ? ({ "--big-fit": fit } as React.CSSProperties) : undefined}
+    >
+      <span className="big__sizer" aria-hidden="true">
+        {finalText}
+      </span>
       <span className="big__ghost" aria-hidden="true">
         {text}
       </span>

@@ -379,19 +379,38 @@ a {
   isolation: isolate;
   display: inline-block;
   line-height: 0.84;
+  /* Ne JAMAIS dépasser le conteneur : le chiffre est mis à l'échelle par JS
+     (BigCount) via --big-fit quand il serait trop large, et borné ici en dur. */
+  max-width: 100%;
+  transform: scale(var(--big-fit, 1));
+  transform-origin: left top;
 }
 .big__ink,
-.big__ghost {
+.big__ghost,
+.big__sizer {
   display: block;
   font-family: var(--font-data);
-  font-size: clamp(3.5rem, 15vw, 9.5rem);
+  /* cqi = largeur du conteneur (voir container-type sur .ann--head,
+     .home__monthly, .story-slide…) ; vw sinon. 9.5rem reste le plafond. */
+  font-size: clamp(2.5rem, 20cqi, 9.5rem);
   letter-spacing: -0.01em;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+/* le calque invisible fixe la largeur de la boîte sur la valeur FINALE :
+   pas de saut de mise en page pendant que le compteur monte. */
+.big__sizer {
+  visibility: hidden;
+  pointer-events: none;
+}
 .big__ink {
   position: relative;
   color: var(--ink);
+}
+/* si un calque de mesure est présent, l'encre passe en absolu par-dessus lui */
+.big__sizer ~ .big__ink {
+  position: absolute;
+  inset: 0;
 }
 .big__ghost {
   position: absolute;
@@ -405,6 +424,15 @@ a {
   font-family: var(--font-display), sans-serif;
   font-weight: 700;
   font-size: clamp(1rem, 2vw, 1.5rem);
+}
+
+/* Conteneurs de requête : le grand chiffre (.big, en cqi) se dimensionne sur
+   LEUR largeur, jamais sur celle de la fenêtre — c'est ce qui l'empêche de
+   déborder d'une brique étroite. */
+.home__monthly,
+.ann--head,
+.onb {
+  container-type: inline-size;
 }
 
 /* ── résumé chiffré en ligne ── */
@@ -882,16 +910,22 @@ a {
   text-decoration: none;
   padding: 0.6rem 0;
   border-bottom: 2px solid transparent;
+  min-width: 0;
+}
+.tiles > li {
+  min-width: 0;
 }
 .tile:hover {
   border-bottom-color: var(--blue);
 }
 .tile__v {
   font-family: var(--font-data);
-  font-size: clamp(1.8rem, 5vw, 2.8rem);
+  font-size: clamp(1.6rem, 4.5vw, 2.8rem);
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   line-height: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .tile__k {
   font-family: var(--font-data);
@@ -1049,9 +1083,12 @@ a {
   .home__monthly-caption .big__unit {
     font-size: 1rem;
   }
+  /* le dimensionnement en cqi (règle de base) suffit sur mobile : la surcharge
+     en 30vw faisait déborder « 1 509 » hors de la carte. */
   .home__monthly .big__ink,
-  .home__monthly .big__ghost {
-    font-size: clamp(7rem, 30vw, 10rem);
+  .home__monthly .big__ghost,
+  .home__monthly .big__sizer {
+    font-size: clamp(4rem, 46cqi, 8rem);
   }
   .flow {
     row-gap: 2rem;
@@ -2551,3 +2588,511 @@ a {
   padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
 
+
+/* ═══════════════════════════════════════════════════════════════
+   Rétros animées — bandeau d'accès + lecteur de story plein écran
+   Même encre, mêmes tokens : deux couleurs, le violet naît du multiply.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── bandeau « ta rétro est prête » (dashboard) ── */
+.recap-gate {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ink);
+  isolation: var(--ink-isolate);
+}
+.recap-gate__spark {
+  color: var(--pink);
+  mix-blend-mode: multiply;
+  font-size: 1.1rem;
+  flex: none;
+}
+.recap-gate__text {
+  margin: 0;
+  flex: 1 1 14rem;
+  min-width: 0;
+  font-family: var(--font-text), Georgia, serif;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+.recap-gate__text strong {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+}
+.recap-gate__go {
+  flex: none;
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 0.6em 0.9em;
+  background: var(--ink);
+  color: var(--paper);
+}
+.recap-gate__go:hover {
+  background: var(--pink);
+  color: var(--paper);
+}
+.recap-gate__close {
+  flex: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--gray);
+  font-family: var(--font-data);
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.3rem;
+}
+.recap-gate__close:hover {
+  color: var(--ink);
+}
+
+/* ── lien d'accès depuis une page période ── */
+.wrap-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-data);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--ink);
+  border-bottom: 2px solid var(--pink);
+  padding-bottom: 0.15rem;
+}
+.wrap-cta:hover {
+  color: var(--pink);
+  mix-blend-mode: multiply;
+}
+
+/* ── lecteur de story ── */
+.story {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
+  outline: none;
+  /* Palette FIGÉE pour la story : les diapos colorées (pink/blue/ink) doivent
+     contraster pareil quel que soit le thème du visiteur — on ne laisse pas
+     --paper/--ink s'inverser sous elles. La diapo « paper » reste neutre. */
+  --s-paper: #ede4cb;
+  --s-ink: #1c1a17;
+  --s-pink: #ff4fa3;
+  --s-blue: #2e4fd6;
+  background: var(--s-ink);
+  color: var(--s-paper);
+}
+.story__bg {
+  position: absolute;
+  inset: -8%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(38px) saturate(0.7);
+  opacity: 0.28;
+  transform: scale(1.1);
+  pointer-events: none;
+}
+.story__bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--blue);
+  mix-blend-mode: screen;
+  opacity: 0.35;
+}
+
+/* barres de progression segmentées, style stories */
+.story__bars {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  gap: 4px;
+  padding: 0.7rem clamp(0.7rem, 3vw, 1.4rem) 0.2rem;
+  padding-top: calc(0.7rem + env(safe-area-inset-top));
+}
+.story__bar {
+  position: relative;
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
+  overflow: hidden;
+}
+.story__bar-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--ink);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.story__bar.is-done .story__bar-fill {
+  transform: scaleX(1);
+}
+.story__bar.is-active .story__bar-fill {
+  animation-name: story-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  animation-duration: 5200ms;
+}
+@keyframes story-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.story__top {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.35rem clamp(0.7rem, 3vw, 1.4rem);
+}
+.story__top-label {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-data);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+.story__icon {
+  flex: none;
+  width: 2.2rem;
+  height: 2.2rem;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1;
+}
+.story__icon.is-on {
+  color: var(--pink);
+  mix-blend-mode: multiply;
+}
+
+.story__stage {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.story__slide {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: clamp(1.5rem, 6vw, 3.5rem);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+  container-type: inline-size;
+}
+.story__slide.is-current {
+  opacity: 1;
+  pointer-events: auto;
+}
+.story__slide[data-tone="paper"] {
+  background: var(--s-paper);
+  color: var(--s-ink);
+}
+.story__slide[data-tone="ink"] {
+  background: var(--s-ink);
+  color: var(--s-paper);
+}
+.story__slide[data-tone="pink"] {
+  background: var(--s-pink);
+  color: var(--s-ink);
+}
+.story__slide[data-tone="blue"] {
+  background: var(--s-blue);
+  color: var(--s-paper);
+}
+/* le grand chiffre suit la couleur de texte de la diapo ; le fantôme garde
+   sa seconde encre (rose, ou bleu sur fond rose) */
+.story__slide .big__ink {
+  color: currentColor;
+}
+.story__slide .big__ghost {
+  color: var(--s-pink);
+}
+.story__slide[data-tone="ink"] .big__ghost,
+.story__slide[data-tone="blue"] .big__ghost {
+  mix-blend-mode: screen;
+}
+.story__slide[data-tone="pink"] .big__ghost {
+  color: var(--s-blue);
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+
+.story__inner {
+  width: min(34rem, 100%);
+  container-type: inline-size;
+  display: grid;
+  gap: 0.7rem;
+  justify-items: center;
+}
+
+.story__eyebrow {
+  margin: 0;
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.story__display {
+  margin: 0;
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  font-size: clamp(2.6rem, 12cqi, 4.5rem);
+}
+.story__huge {
+  margin: 0.2rem 0;
+  line-height: 0.82;
+}
+.story__name {
+  margin: 0;
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.98;
+  font-size: clamp(2rem, 11cqi, 3.8rem);
+  overflow-wrap: anywhere;
+}
+.story__by {
+  margin: 0;
+  font-family: var(--font-text), Georgia, serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  opacity: 0.8;
+}
+.story__unit {
+  margin: 0;
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: clamp(1rem, 4cqi, 1.4rem);
+  display: grid;
+  gap: 0.3rem;
+  justify-items: center;
+}
+.story__caption {
+  margin: 0;
+  font-family: var(--font-text), Georgia, serif;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  max-width: 34ch;
+  opacity: 0.85;
+}
+.story__delta {
+  font-family: var(--font-data);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+.story__delta.is-up {
+  color: var(--pink);
+  mix-blend-mode: multiply;
+}
+
+.story__list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  width: 100%;
+  display: grid;
+  gap: 0.55rem;
+}
+.story__list li {
+  display: grid;
+  grid-template-columns: 1.6em minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.7rem;
+  text-align: left;
+  border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  padding-top: 0.5rem;
+}
+.story__list-n {
+  font-family: var(--font-data);
+  font-size: 0.8rem;
+  opacity: 0.55;
+}
+.story__list-main {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+.story__list-name {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: 1.02rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.story__list-sub {
+  font-family: var(--font-text), Georgia, serif;
+  font-style: italic;
+  font-size: 0.85rem;
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.story__list-v {
+  font-family: var(--font-data);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.story__clock {
+  width: min(280px, 74cqi);
+}
+.story__clock .clock {
+  max-width: none;
+}
+.story__slide[data-tone] .clock__bar {
+  fill: currentColor;
+  stroke: currentColor !important;
+}
+.story__slide[data-tone] .clock__tick {
+  fill: currentColor;
+  opacity: 0.6;
+}
+
+.story__ratio {
+  width: 100%;
+  height: 1.8rem;
+  display: flex;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid currentColor;
+}
+.story__ratio-seg {
+  height: 100%;
+}
+.story__ratio-seg--fresh {
+  background: var(--pink);
+  mix-blend-mode: multiply;
+}
+.story__ratio-seg--repeat {
+  background: color-mix(in srgb, currentColor 30%, transparent);
+}
+
+.story__recap {
+  margin: 0.5rem 0 0;
+  width: 100%;
+  display: grid;
+  gap: 0.4rem;
+}
+.story__recap > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  padding-top: 0.4rem;
+}
+.story__recap dt {
+  font-family: var(--font-data);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.story__recap dd {
+  margin: 0;
+  font-family: var(--font-data);
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.story__foot {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2rem;
+  padding: 0.5rem 1rem calc(0.6rem + env(safe-area-inset-bottom));
+}
+.story__hint {
+  margin: 0;
+  font-family: var(--font-data);
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+.story__step {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0.2rem 0.7rem;
+}
+.story__step:hover {
+  color: var(--pink);
+  mix-blend-mode: multiply;
+}
+
+/* entrées échelonnées des blocs d'une diapo */
+.story__reveal {
+  opacity: 0;
+}
+.story__slide.is-current .story__reveal {
+  animation: story-rise 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes story-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story__slide,
+  .story__reveal,
+  .story__slide.is-current .story__reveal {
+    transition: none;
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .story__slide:not(.is-current) {
+    opacity: 0;
+  }
+  .story__bar.is-active .story__bar-fill {
+    animation: none;
+    transform: scaleX(1);
+  }
+}

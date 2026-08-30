@@ -97,3 +97,45 @@ export async function artistImage(
   }
   return null;
 }
+
+/**
+ * Extrait audio (MP3 30 s, sans clé) + pochette d'album d'un titre — sert la
+ * musique de fond et le décor des rétros animées.
+ *
+ * On tente d'abord une correspondance STRICTE (comme `trackDuration`). Faute de
+ * quoi, on retombe sur le premier résultat : pour une ambiance de 30 s ce n'est
+ * pas grave si ce n'est pas la prise exacte, alors que ça le serait pour une
+ * durée affichée.
+ */
+export type TrackMedia = { preview: string | null; cover: string | null };
+
+export async function trackMedia(
+  artist: string,
+  track: string,
+  signal?: AbortSignal,
+): Promise<TrackMedia> {
+  const q = `artist:"${artist.replace(/"/g, "")}" track:"${track.replace(/"/g, "")}"`;
+  const url = `${API}/search?q=${encodeURIComponent(q)}&limit=5`;
+  const json = (await getJson(url, signal)) as {
+    data?: {
+      preview?: string;
+      title?: string;
+      artist?: { name?: string };
+      album?: { cover_medium?: string; cover_big?: string; cover_xl?: string };
+    }[];
+  };
+
+  const pick = (hit: NonNullable<typeof json.data>[number]): TrackMedia => ({
+    preview: hit.preview && hit.preview.length > 8 ? hit.preview : null,
+    cover:
+      hit.album?.cover_xl ?? hit.album?.cover_big ?? hit.album?.cover_medium ?? null,
+  });
+
+  for (const hit of json.data ?? []) {
+    const okTrack = hit.title ? sameName(hit.title, track) : false;
+    const okArtist = hit.artist?.name ? sameName(hit.artist.name, artist) : false;
+    if (okTrack && okArtist) return pick(hit);
+  }
+  const first = json.data?.[0];
+  return first ? pick(first) : { preview: null, cover: null };
+}

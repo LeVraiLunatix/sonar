@@ -16,6 +16,8 @@ import LiveRecent from "@/components/LiveRecent";
 import LiveToday from "@/components/LiveToday";
 import LivePeriodCount from "@/components/LivePeriodCount";
 import Reveal from "@/components/Reveal";
+import RecapGate from "@/components/RecapGate";
+import { availableRecaps } from "@/lib/recap";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +47,8 @@ export default async function Home() {
     <main className="year year--nospine">
       <div className="flow flow--wide">
         <TopBar />
+
+        <RecapGate recaps={availableRecaps()} />
 
         <Reveal as="section" className="ann home__monthly">
           <p className="ann__label">
