@@ -21,6 +21,9 @@ const PUBLIC = [
   // extrait) : nécessaire pour qu'un lien de rétro partagé (sans session) ait
   // aussi son fond animé et sa musique.
   "/api/recap",
+  // /api/widget : lu par Daycord sans session. Rien ne sort sans une clé de
+  // widget signée (lib/widget.ts), vérifiée par la route elle-même.
+  "/api/widget",
 ];
 
 export async function middleware(req: NextRequest) {

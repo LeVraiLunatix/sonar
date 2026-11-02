@@ -5,6 +5,7 @@ import { nf, frDate } from "@/lib/format";
 import TopBar from "@/components/TopBar";
 import Reveal from "@/components/Reveal";
 import VisibilityToggle from "@/components/VisibilityToggle";
+import WidgetKey from "@/components/WidgetKey";
 import { currentUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Chercher" };
@@ -78,6 +79,13 @@ export default async function SearchPage({
           <Reveal as="section" className="ann">
             <p className="ann__label">ta visibilité</p>
             <VisibilityToggle initial={visible} />
+          </Reveal>
+        )}
+
+        {me && (
+          <Reveal as="section" className="ann">
+            <p className="ann__label">ta clé daycord</p>
+            <WidgetKey />
           </Reveal>
         )}
 
